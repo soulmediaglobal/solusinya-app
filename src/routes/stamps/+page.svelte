@@ -92,7 +92,7 @@
 		<div class="page">
 			<header>
 				<a class="back" href="/home" aria-label="Back">←</a>
-				<h1>Stamps & beans</h1>
+				<h1>Beans</h1>
 			</header>
 
 			<div class="stats">

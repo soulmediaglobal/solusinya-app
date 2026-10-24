@@ -97,7 +97,7 @@
 						</div>
 					{/if}
 				{/each}
-				<a class="used" href="/stamps"><span>Used rewards are in Stamps & beans</span><b>View ›</b></a>
+				<a class="used" href="/stamps"><span>Used rewards are in Beans</span><b>View ›</b></a>
 			{:else}
 				{#each catalog as r (r.id)}
 					{@const need = (r.beansCost ?? 0) - balance.beans}

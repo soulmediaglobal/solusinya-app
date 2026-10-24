@@ -59,7 +59,7 @@
 			<div class="since"><small>MEMBER SINCE</small><span class="v">{longDate(user.createdAt)}</span></div>
 
 			<a class="sb" href="/stamps">
-				<div class="row"><b>Stamps & beans</b><span>{fill} / 10 · {balance.beans.toLocaleString('id-ID')} beans</span><Icon name="chevron" size={16} /></div>
+				<div class="row"><b>Beans</b><span>{fill} / 10 · {balance.beans.toLocaleString('id-ID')} beans</span><Icon name="chevron" size={16} /></div>
 				<div class="bar"><i style:width="{fill * 10}%"></i></div>
 			</a>
 		</div>
