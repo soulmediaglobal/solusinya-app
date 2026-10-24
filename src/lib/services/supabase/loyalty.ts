@@ -1,12 +1,62 @@
-import type { AdminTx, Balance, LoyaltyService, MemberLookup } from '../loyalty';
+import type { Activity, AdminTx, Balance, LedgerEntry, LoyaltyService, MemberLookup } from '../loyalty';
 import { supabase } from './client';
 
+async function uid() {
+	const { data } = await supabase.auth.getSession();
+	return data.session?.user.id ?? '';
+}
 const clean = (q: string) => q.trim().replace(/[^A-Za-z0-9._-]/g, '');
 
 export const supabaseLoyalty: LoyaltyService = {
 	async balance() {
-		const { data } = await supabase.from('member_balances').select('stamps, beans, lifetime_beans').maybeSingle();
+		// Filter by user: admins can read every member's rows, but this is the signed-in member's own balance.
+		const { data } = await supabase
+			.from('member_balances')
+			.select('stamps, beans, lifetime_beans')
+			.eq('user_id', await uid())
+			.maybeSingle();
 		return { stamps: data?.stamps ?? 0, beans: data?.beans ?? 0, lifetimeBeans: data?.lifetime_beans ?? 0 };
+	},
+
+	async ledger() {
+		const { data } = await supabase
+			.from('ledger')
+			.select('id, kind, delta, reason, created_at, transaction:transactions(amount_rp, outlet_code)')
+			.eq('user_id', await uid())
+			.order('created_at', { ascending: false })
+			.limit(500);
+		return (data ?? []).map((r) => {
+			const t = r.transaction as unknown as { amount_rp: number; outlet_code: string } | null;
+			return {
+				id: r.id,
+				kind: r.kind,
+				delta: r.delta,
+				reason: r.reason,
+				createdAt: r.created_at,
+				amountRp: t?.amount_rp ?? null,
+				outletCode: t?.outlet_code ?? null
+			} as LedgerEntry;
+		});
+	},
+
+	async activity(limit = 5) {
+		const { data } = await supabase
+			.from('transactions')
+			.select('id, amount_rp, outlet_code, created_at, ledger(kind, delta)')
+			.eq('user_id', await uid())
+			.order('created_at', { ascending: false })
+			.limit(limit);
+		return (data ?? []).map((r) => {
+			const rows = (r.ledger ?? []) as { kind: string; delta: number }[];
+			return {
+				id: r.id,
+				amountRp: r.amount_rp,
+				outletCode: r.outlet_code,
+				createdAt: r.created_at,
+				beans: rows.filter((x) => x.kind === 'beans').reduce((a, x) => a + x.delta, 0),
+				stamps: rows.filter((x) => x.kind === 'stamp').reduce((a, x) => a + x.delta, 0)
+			} satisfies Activity;
+		});
 	},
 
 	async findMember(query) {
