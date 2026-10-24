@@ -4,7 +4,7 @@
 	import Icon, { type IconName } from '#lib/components/Icon.svelte';
 	import { cardFill, monthLabel, rp, whenLabel } from '#lib/format';
 	import { loyalty } from '#lib/services';
-	import type { Balance, LedgerEntry } from '#lib/services/loyalty';
+	import type { Balance, LedgerEntry, Voucher } from '#lib/services/loyalty';
 	import { session } from '#lib/stores/session.svelte';
 
 	$effect(() => {
@@ -13,13 +13,15 @@
 
 	let balance = $state<Balance>({ stamps: 0, beans: 0, lifetimeBeans: 0 });
 	let entries = $state<LedgerEntry[]>([]);
+	let vouchers = $state<Voucher[]>([]);
 	let loaded = $state(false);
 	let tab = $state<'all' | 'earned' | 'redeemed'>('all');
 	$effect(() => {
 		if (!session.user) return;
-		Promise.all([loyalty.balance(), loyalty.ledger()]).then(([b, l]) => {
+		Promise.all([loyalty.balance(), loyalty.ledger(), loyalty.vouchers()]).then(([b, l, v]) => {
 			balance = b;
 			entries = l;
+			vouchers = v;
 			loaded = true;
 		});
 	});
@@ -44,10 +46,11 @@
 		amount: string;
 		out: boolean;
 		month: string;
+		at: string;
 	}
 	function toRow(e: LedgerEntry): Row {
 		const when = whenLabel(e.createdAt);
-		const base = { id: e.id, month: monthLabel(e.createdAt), out: e.delta < 0 };
+		const base = { id: e.id, at: e.createdAt, month: monthLabel(e.createdAt), out: e.delta < 0 };
 		if (e.kind === 'beans' && e.delta > 0)
 			return { ...base, icon: 'bean', title: 'Beans earned', sub: `${e.amountRp ? `Purchase ${rp(e.amountRp)}` : 'Bonus'} · ${when}`, amount: `+${e.delta} beans` };
 		if (e.kind === 'beans')
@@ -56,10 +59,22 @@
 			return { ...base, icon: 'plus', title: 'Stamp collected', sub: `Stamp ${cardFill(stampNo.get(e.id) ?? 0)} of 10 · ${when}`, amount: `+${e.delta} stamp` };
 		return { ...base, icon: 'gift', title: 'Stamp adjustment', sub: when, amount: `${e.delta} stamp` };
 	}
+	// Rewards show up here too: when unlocked from stamps, and when used at the counter.
+	function voucherRows(): Row[] {
+		const out: Row[] = [];
+		for (const v of vouchers) {
+			if (v.source === 'stamp')
+				out.push({ id: v.id + 'u', at: v.createdAt, month: monthLabel(v.createdAt), out: false, icon: 'gift', title: 'Reward unlocked', sub: `${v.rewardName} · ${whenLabel(v.createdAt)}`, amount: `Stamp ${v.sourceDetail}` });
+			if (v.status === 'used' && v.usedAt)
+				out.push({ id: v.id + 'x', at: v.usedAt, month: monthLabel(v.usedAt), out: true, icon: 'gift', title: 'Reward used', sub: `${v.rewardName} · ${whenLabel(v.usedAt)}`, amount: 'Used' });
+		}
+		return out;
+	}
 	const rows = $derived(
-		entries
-			.filter((e) => (tab === 'all' ? true : tab === 'earned' ? e.delta > 0 : e.delta < 0))
-			.map(toRow)
+		[
+			...entries.filter((e) => (tab === 'all' ? true : tab === 'earned' ? e.delta > 0 : e.delta < 0)).map(toRow),
+			...(tab === 'all' ? voucherRows() : [])
+		].sort((a, b) => b.at.localeCompare(a.at))
 	);
 	const groups = $derived.by(() => {
 		const out: { month: string; rows: Row[] }[] = [];

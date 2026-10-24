@@ -1,9 +1,28 @@
-import type { Activity, AdminTx, Balance, LedgerEntry, LoyaltyService, MemberLookup, Promotion } from '../loyalty';
+import type { Activity, AdminTx, Balance, LedgerEntry, LoyaltyService, MemberLookup, Milestone, Promotion, Reward, Voucher, VoucherPeek } from '../loyalty';
 import { supabase } from './client';
 
 async function uid() {
 	const { data } = await supabase.auth.getSession();
 	return data.session?.user.id ?? '';
+}
+const VOUCHER_COLS =
+	'id, source, source_detail, status, expires_at, code, code_expires_at, used_at, used_outlet, created_at, reward:rewards(name, description)';
+function toVoucher(r: Record<string, unknown>): Voucher {
+	const rw = r.reward as { name: string; description: string } | null;
+	return {
+		id: r.id as string,
+		rewardName: rw?.name ?? 'Reward',
+		rewardDescription: rw?.description ?? '',
+		source: r.source as 'stamp' | 'beans',
+		sourceDetail: r.source_detail as number,
+		status: r.status as Voucher['status'],
+		expiresAt: r.expires_at as string,
+		code: (r.code as string | null) ?? null,
+		codeExpiresAt: (r.code_expires_at as string | null) ?? null,
+		usedAt: (r.used_at as string | null) ?? null,
+		usedOutlet: (r.used_outlet as string | null) ?? null,
+		createdAt: r.created_at as string
+	};
 }
 const clean = (q: string) => q.trim().replace(/[^A-Za-z0-9._-]/g, '');
 
@@ -28,6 +47,59 @@ export const supabaseLoyalty: LoyaltyService = {
 		return (data ?? []).map(
 			(r): Promotion => ({ id: r.id, kicker: r.kicker, title: r.title, subtitle: r.subtitle, focusX: r.focus_x, focusY: r.focus_y })
 		);
+	},
+
+	async rewards() {
+		const { data } = await supabase.from('rewards').select('id, name, description, beans_cost').not('beans_cost', 'is', null).order('sort');
+		return (data ?? []).map((r): Reward => ({ id: r.id, name: r.name, description: r.description, beansCost: r.beans_cost }));
+	},
+
+	async milestones() {
+		const { data } = await supabase.from('stamp_milestones').select('position, reward:rewards(name)').order('position');
+		return (data ?? []).map((r): Milestone => ({
+			position: r.position,
+			rewardName: (r.reward as unknown as { name: string } | null)?.name ?? 'Reward'
+		}));
+	},
+
+	async vouchers() {
+		const { data } = await supabase.from('vouchers').select(VOUCHER_COLS).eq('user_id', await uid()).order('created_at', { ascending: false });
+		return (data ?? []).map((r) => toVoucher(r as Record<string, unknown>));
+	},
+
+	async voucher(id) {
+		const { data } = await supabase.from('vouchers').select(VOUCHER_COLS).eq('id', id).eq('user_id', await uid()).maybeSingle();
+		return data ? toVoucher(data as Record<string, unknown>) : null;
+	},
+
+	async redeem(rewardId) {
+		const { data, error } = await supabase.rpc('redeem_reward', { p_reward_id: rewardId });
+		if (error) throw new Error(error.message);
+		return { voucherId: data.voucher_id as string, beansAfter: data.beans_after as number };
+	},
+
+	async activate(voucherId) {
+		const { data, error } = await supabase.rpc('activate_voucher', { p_voucher_id: voucherId });
+		if (error) throw new Error(error.message);
+		return { code: data.code as string, codeExpiresAt: data.code_expires_at as string };
+	},
+
+	async peekVoucher(code) {
+		const { data, error } = await supabase.rpc('peek_voucher', { p_code: code });
+		if (error) throw new Error(error.message);
+		return {
+			state: data.state,
+			reward: data.reward,
+			username: data.username,
+			fullName: data.full_name,
+			memberId: data.member_id
+		} as VoucherPeek;
+	},
+
+	async useVoucher(code, outletCode) {
+		const { data, error } = await supabase.rpc('use_voucher', { p_code: code, p_outlet: outletCode });
+		if (error) throw new Error(error.message);
+		return { reward: data.reward as string, username: data.username as string, fullName: data.full_name as string };
 	},
 
 	async ledger() {
@@ -96,7 +168,7 @@ export const supabaseLoyalty: LoyaltyService = {
 			p_outlet: outletCode
 		});
 		if (error) throw new Error(error.message);
-		return { stamps: data.stamps as number, beans: data.beans as number };
+		return { stamps: data.stamps as number, beans: data.beans as number, rewardUnlocked: (data.reward_unlocked as string | null) ?? null };
 	},
 
 	async recentTransactions(limit = 10) {

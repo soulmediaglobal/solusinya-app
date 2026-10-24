@@ -6,7 +6,8 @@
 	import Qr from '#lib/components/Qr.svelte';
 	import { cardFill, greeting, outletName, rp, whenLabel } from '#lib/format';
 	import { loyalty } from '#lib/services';
-	import type { Activity, Balance, Promotion } from '#lib/services/loyalty';
+	import type { Activity, Balance, Promotion, Voucher } from '#lib/services/loyalty';
+	import { isUsable } from '#lib/vouchers';
 	import { session } from '#lib/stores/session.svelte';
 
 	$effect(() => {
@@ -16,14 +17,16 @@
 	let balance = $state<Balance>({ stamps: 0, beans: 0, lifetimeBeans: 0 });
 	let activity = $state<Activity[]>([]);
 	let promos = $state<Promotion[]>([]);
+	let vouchers = $state<Voucher[]>([]);
 	let slide = $state(0);
 	let loaded = $state(false);
 	$effect(() => {
 		if (!session.user) return;
-		Promise.all([loyalty.balance(), loyalty.activity(5), loyalty.promotions()]).then(([b, a, p]) => {
+		Promise.all([loyalty.balance(), loyalty.activity(5), loyalty.promotions(), loyalty.vouchers()]).then(([b, a, p, v]) => {
 			balance = b;
 			activity = a;
 			promos = p;
+			vouchers = v;
 			loaded = true;
 		});
 	});
@@ -33,6 +36,7 @@
 	const rest = $derived(user?.fullName.split(' ').slice(1).join(' ') ?? '');
 	const fill = $derived(cardFill(balance.stamps));
 	const next = $derived(fill + 1);
+	const ready = $derived(vouchers.filter((v) => isUsable(v)));
 	function onScroll(e: Event) {
 		const el = e.currentTarget as HTMLElement;
 		slide = Math.round(el.scrollLeft / 312);
@@ -84,6 +88,17 @@
 					</div>
 				{/each}
 			</div>
+
+			{#if ready.length}
+				<a class="ready" href="/rewards">
+					<span class="ri"><Icon name="gift" size={20} /></span>
+					<div class="rtx">
+						<b>{ready.length} {ready.length === 1 ? 'reward' : 'rewards'} ready to use</b>
+						<small>{ready.map((v) => v.rewardName).join(' · ')}</small>
+					</div>
+					<span class="rv">View</span>
+				</a>
+			{/if}
 
 			{#if promos.length}
 				<div class="head promo">
@@ -399,6 +414,55 @@
 		justify-content: center;
 	}
 
+	.ready {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		margin-top: 16px;
+		padding: 0 14px;
+		height: 72px;
+		border-radius: 14px;
+		border: 1px solid rgba(189, 120, 78, 0.7);
+		background: rgba(189, 120, 78, 0.12);
+		color: #fff;
+		text-decoration: none;
+	}
+	.ri {
+		flex: none;
+		width: 38px;
+		height: 38px;
+		border-radius: 50%;
+		background: rgba(189, 120, 78, 0.25);
+		color: var(--copper-light);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+	}
+	.rtx {
+		flex: 1;
+		min-width: 0;
+	}
+	.rtx b {
+		display: block;
+		font-size: 13px;
+	}
+	.rtx small {
+		display: block;
+		margin-top: 3px;
+		font-size: 10px;
+		color: var(--text-2);
+		overflow: hidden;
+		text-overflow: ellipsis;
+		white-space: nowrap;
+	}
+	.rv {
+		padding: 9px 18px;
+		border-radius: 30px;
+		border: 1px solid var(--copper);
+		font-size: 12px;
+		font-weight: 700;
+		color: var(--copper-light);
+	}
 	.promo {
 		margin-top: 28px;
 	}

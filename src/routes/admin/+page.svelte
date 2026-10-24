@@ -66,7 +66,7 @@
 		busy = true;
 		try {
 			const res = await loyalty.recordTransaction(found.memberId, amountNum, outlet);
-			done = `Recorded ${rp(amountNum)} for @${found.username}: +${res.stamps} stamp, +${res.beans} beans.`;
+			done = `Recorded ${rp(amountNum)} for @${found.username}: +${res.stamps} stamp, +${res.beans} beans.` + (res.rewardUnlocked ? ` Reward unlocked: ${res.rewardUnlocked}.` : '');
 			query = '';
 			amount = '';
 			await refresh();
@@ -109,6 +109,7 @@
 			<div class="gap"></div>
 			<Button type="submit" loading={busy} disabled={!found || amountNum <= 0}>Record transaction</Button>
 		</form>
+		<a class="tool" href="/admin/reward">Validate a reward code ›</a>
 
 		<section class="recent">
 			<h2>Latest transactions</h2>
@@ -200,6 +201,15 @@
 		font-size: 13px;
 		color: var(--copper-soft);
 		pointer-events: none;
+	}
+	.tool {
+		display: block;
+		margin-top: 18px;
+		text-align: center;
+		font-size: 12px;
+		font-weight: 700;
+		color: var(--copper-light);
+		text-decoration: none;
 	}
 	.recent {
 		margin-top: 28px;

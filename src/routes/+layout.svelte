@@ -43,6 +43,7 @@
 	@media (min-width: 480px) {
 		.shell {
 			zoom: var(--zoom, 1);
+			transform: translateZ(0); /* position: fixed children (sheets) stay inside the phone frame */
 			width: 390px;
 			height: 844px;
 			min-height: 0;
