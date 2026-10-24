@@ -1,4 +1,4 @@
-import type { Activity, AdminTx, Balance, LedgerEntry, LoyaltyService, MemberLookup } from '../loyalty';
+import type { Activity, AdminTx, Balance, LedgerEntry, LoyaltyService, MemberLookup, Promotion } from '../loyalty';
 import { supabase } from './client';
 
 async function uid() {
@@ -16,6 +16,18 @@ export const supabaseLoyalty: LoyaltyService = {
 			.eq('user_id', await uid())
 			.maybeSingle();
 		return { stamps: data?.stamps ?? 0, beans: data?.beans ?? 0, lifetimeBeans: data?.lifetime_beans ?? 0 };
+	},
+
+	async promotions() {
+		const { data } = await supabase
+			.from('promotions')
+			.select('id, kicker, title, subtitle, focus_x, focus_y')
+			.eq('active', true)
+			.order('sort')
+			.limit(5);
+		return (data ?? []).map(
+			(r): Promotion => ({ id: r.id, kicker: r.kicker, title: r.title, subtitle: r.subtitle, focusX: r.focus_x, focusY: r.focus_y })
+		);
 	},
 
 	async ledger() {

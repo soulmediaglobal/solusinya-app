@@ -6,7 +6,7 @@
 	import Qr from '#lib/components/Qr.svelte';
 	import { cardFill, greeting, outletName, rp, whenLabel } from '#lib/format';
 	import { loyalty } from '#lib/services';
-	import type { Activity, Balance } from '#lib/services/loyalty';
+	import type { Activity, Balance, Promotion } from '#lib/services/loyalty';
 	import { session } from '#lib/stores/session.svelte';
 
 	$effect(() => {
@@ -15,12 +15,15 @@
 
 	let balance = $state<Balance>({ stamps: 0, beans: 0, lifetimeBeans: 0 });
 	let activity = $state<Activity[]>([]);
+	let promos = $state<Promotion[]>([]);
+	let slide = $state(0);
 	let loaded = $state(false);
 	$effect(() => {
 		if (!session.user) return;
-		Promise.all([loyalty.balance(), loyalty.activity(5)]).then(([b, a]) => {
+		Promise.all([loyalty.balance(), loyalty.activity(5), loyalty.promotions()]).then(([b, a, p]) => {
 			balance = b;
 			activity = a;
+			promos = p;
 			loaded = true;
 		});
 	});
@@ -30,6 +33,10 @@
 	const rest = $derived(user?.fullName.split(' ').slice(1).join(' ') ?? '');
 	const fill = $derived(cardFill(balance.stamps));
 	const next = $derived(fill + 1);
+	function onScroll(e: Event) {
+		const el = e.currentTarget as HTMLElement;
+		slide = Math.round(el.scrollLeft / 312);
+	}
 </script>
 
 {#if user}
@@ -77,6 +84,32 @@
 					</div>
 				{/each}
 			</div>
+
+			{#if promos.length}
+				<div class="head promo">
+					<h2>Promotions</h2>
+					{#if promos.length > 1}<span class="swipe">Swipe</span>{/if}
+				</div>
+				<div class="slider" onscroll={onScroll}>
+					{#each promos as p (p.id)}
+						<article class="banner">
+							<img src="/img/bar.jpg" alt="" style:object-position="{p.focusX}% {p.focusY}%" />
+							<div class="bshade"></div>
+							<div class="btxt">
+								<div class="kick">{p.kicker}</div>
+								<div class="bt">{p.title}</div>
+								<div class="bs">{p.subtitle}</div>
+							</div>
+						</article>
+					{/each}
+					<div class="endpad"></div>
+				</div>
+				{#if promos.length > 1}
+					<div class="dots" aria-hidden="true">
+						{#each promos as p, i (p.id)}<span class:on={i === slide}></span>{/each}
+					</div>
+				{/if}
+			{/if}
 
 			<div class="head act">
 				<h2>Latest activity</h2>
@@ -366,6 +399,93 @@
 		justify-content: center;
 	}
 
+	.promo {
+		margin-top: 28px;
+	}
+	.swipe {
+		font-size: 11px;
+		color: var(--text-3);
+	}
+	.slider {
+		display: flex;
+		gap: 12px;
+		margin: 0 -24px;
+		padding: 0 24px;
+		overflow-x: auto;
+		scroll-snap-type: x mandatory;
+		scroll-padding-left: 24px;
+		scrollbar-width: none;
+	}
+	.slider::-webkit-scrollbar {
+		display: none;
+	}
+	.banner {
+		position: relative;
+		flex: none;
+		width: 300px;
+		height: 140px;
+		overflow: hidden;
+		border-radius: 16px;
+		border: 1px solid rgba(189, 120, 78, 0.5);
+		scroll-snap-align: start;
+	}
+	.banner img {
+		position: absolute;
+		inset: 0;
+		width: 100%;
+		height: 100%;
+		object-fit: cover;
+	}
+	.bshade {
+		position: absolute;
+		inset: 0;
+		background: linear-gradient(90deg, rgba(9, 7, 5, 0.92) 0%, rgba(9, 7, 5, 0.65) 55%, rgba(9, 7, 5, 0.25) 100%);
+	}
+	.btxt {
+		position: absolute;
+		left: 18px;
+		right: 18px;
+		bottom: 18px;
+	}
+	.kick {
+		font-size: 9px;
+		font-weight: 700;
+		letter-spacing: 0.24em;
+		color: var(--copper-light);
+	}
+	.bt {
+		margin-top: 6px;
+		font-size: 19px;
+		font-weight: 800;
+		letter-spacing: -0.03em;
+		line-height: 1.15;
+	}
+	.bs {
+		margin-top: 4px;
+		font-size: 11px;
+		color: var(--text-2);
+	}
+	.endpad {
+		flex: none;
+		width: 12px;
+	}
+	.dots {
+		display: flex;
+		justify-content: center;
+		gap: 6px;
+		margin-top: 14px;
+	}
+	.dots span {
+		width: 6px;
+		height: 6px;
+		border-radius: 3px;
+		background: rgba(255, 255, 255, 0.3);
+		transition: width 0.2s;
+	}
+	.dots span.on {
+		width: 18px;
+		background: var(--copper);
+	}
 	.act {
 		margin-top: 30px;
 	}

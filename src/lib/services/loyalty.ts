@@ -22,6 +22,15 @@ export interface Activity {
 	beans: number;
 	stamps: number;
 }
+export interface Promotion {
+	id: string;
+	kicker: string;
+	title: string;
+	subtitle: string;
+	/** where the background photo is anchored, in percent */
+	focusX: number;
+	focusY: number;
+}
 export interface MemberLookup {
 	id: string;
 	username: string;
@@ -41,6 +50,8 @@ export interface AdminTx {
 export interface LoyaltyService {
 	/** Balance of the signed-in member. */
 	balance(): Promise<Balance>;
+	/** Active banners for the Home slider (max 5), in display order. */
+	promotions(): Promise<Promotion[]>;
 	/** Signed-in member's ledger, newest first. */
 	ledger(): Promise<LedgerEntry[]>;
 	/** Signed-in member's latest purchases. */

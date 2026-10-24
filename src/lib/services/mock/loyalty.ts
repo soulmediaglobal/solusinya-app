@@ -1,4 +1,4 @@
-import type { Activity, LedgerEntry, LoyaltyService } from '../loyalty';
+import type { Activity, LedgerEntry, LoyaltyService, Promotion } from '../loyalty';
 
 /** Without Supabase (no .env) the app shows sample data so screens can be built and checked offline. Admin tools are disabled. */
 const day = 86_400_000;
@@ -21,7 +21,18 @@ const ledger = ([
 	{ id: 'r1', kind: 'beans', delta: -100, reason: 'redeem', createdAt: at(8, 10, 30), amountRp: null, outletCode: null }
 ] as LedgerEntry[]).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
+const promos: Promotion[] = [
+	{ id: '1', kicker: 'WEEKEND', title: 'Double stamps', subtitle: 'Every Saturday and Sunday', focusX: 12, focusY: 50 },
+	{ id: '2', kicker: 'NEW MENU', title: 'Seasonal brew is here', subtitle: 'Try it at Dramaga this month', focusX: 80, focusY: 40 },
+	{ id: '3', kicker: 'BRING YOUR OWN', title: 'Tumbler day', subtitle: 'Bring a tumbler, get a free shot', focusX: 35, focusY: 70 },
+	{ id: '4', kicker: 'MEMBERS ONLY', title: 'Birthday treat', subtitle: 'Add your birthday to unlock', focusX: 65, focusY: 20 },
+	{ id: '5', kicker: 'COMING SOON', title: 'New outlet opening', subtitle: 'Be the first to know', focusX: 95, focusY: 60 }
+];
+
 export const mockLoyalty: LoyaltyService = {
+	async promotions() {
+		return promos;
+	},
 	async balance() {
 		const sum = (k: string) => ledger.filter((e) => e.kind === k).reduce((a, e) => a + e.delta, 0);
 		return {
