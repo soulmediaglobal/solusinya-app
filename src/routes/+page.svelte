@@ -79,7 +79,8 @@
 	}
 	.copy {
 		text-align: center;
-		margin-bottom: 36px;
+		/* Naik sedikit dari tombol; menyesuaikan tinggi layar supaya HP kecil tidak menabrak logo. */
+		margin-bottom: clamp(36px, 9dvh, 84px);
 	}
 	.eyebrow {
 		font-size: 11px;
