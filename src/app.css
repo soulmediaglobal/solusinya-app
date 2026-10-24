@@ -1,0 +1,54 @@
+:root {
+	--bg: #090705;
+	--bg-deep: #050403;
+	--surface: #1e130d;
+	--copper: #bd784e;
+	--copper-deep: #83472c;
+	--copper-soft: #d59b75;
+	--copper-light: #e8b28e;
+	--cream: #f2e8da;
+	--error: #e08a78;
+	--success: #7fb98a;
+	--danger: #c9806b;
+	--text: #fff;
+	--text-2: rgba(255, 255, 255, 0.75);
+	--text-3: rgba(255, 255, 255, 0.6);
+	--line: rgba(255, 255, 255, 0.28);
+	--grad-primary: linear-gradient(90deg, #83472c, #a05a37);
+	--font: 'Montserrat', Arial, sans-serif;
+}
+*,
+*::before,
+*::after {
+	box-sizing: border-box;
+}
+html,
+body {
+	margin: 0;
+	min-height: 100%;
+	background: #050403;
+	color: var(--text);
+	font-family: var(--font);
+	-webkit-font-smoothing: antialiased;
+}
+a {
+	color: inherit;
+}
+button,
+input,
+select {
+	font-family: inherit;
+}
+.ic {
+	-webkit-mask: url(/img/logo-mask.png) center / contain no-repeat;
+	mask: url(/img/logo-mask.png) center / contain no-repeat;
+}
+@keyframes pulse {
+	0%,
+	100% {
+		box-shadow: 0 0 0 0 rgba(189, 120, 78, 0.5);
+	}
+	50% {
+		box-shadow: 0 0 0 6px rgba(189, 120, 78, 0);
+	}
+}
