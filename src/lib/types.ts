@@ -9,6 +9,7 @@ export interface Profile {
 	whatsapp: string | null;
 	outletCode: OutletCode;
 	createdAt: string; // ISO
+	isAdmin: boolean;
 }
 
 export interface SignUpInput {

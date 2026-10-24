@@ -3,6 +3,7 @@
 	import Screen from '#lib/components/Screen.svelte';
 	import Button from '#lib/components/Button.svelte';
 	import { OUTLETS } from '#lib/config';
+	import { loyalty } from '#lib/services';
 	import { session } from '#lib/stores/session.svelte';
 
 	$effect(() => {
@@ -10,6 +11,11 @@
 	});
 	const first = $derived(session.user?.fullName.split(' ')[0] ?? '');
 	const outlet = $derived(OUTLETS.find((o) => o.code === session.user?.outletCode)?.name ?? '');
+
+	let balance = $state({ stamps: 0, beans: 0, lifetimeBeans: 0 });
+	$effect(() => {
+		if (session.user) loyalty.balance().then((b) => (balance = b));
+	});
 
 	async function signOut() {
 		await session.signOut();
@@ -25,7 +31,11 @@
 			<div><dt>MEMBER ID</dt><dd>{session.user.memberId}</dd></div>
 			<div><dt>REGISTERED OUTLET</dt><dd>{outlet}</dd></div>
 			<div><dt>USERNAME</dt><dd>@{session.user.username}</dd></div>
+			<div><dt>STAMPS · BEANS</dt><dd>{balance.stamps} · {balance.beans}</dd></div>
 		</dl>
+		{#if session.user.isAdmin}
+			<div class="adm"><a class="link" href="/admin">Admin: add transaction</a></div>
+		{/if}
 		<div class="spacer"></div>
 		<Button variant="ghost" onclick={signOut}>Sign out</Button>
 	</Screen>
@@ -49,6 +59,11 @@
 		margin: 4px 0 0;
 		font-size: 15px;
 		font-weight: 600;
+	}
+	.adm {
+		text-align: center;
+		margin-top: 22px;
+		font-size: 13px;
 	}
 	.spacer {
 		flex: 1;

@@ -82,6 +82,7 @@ export const mockAuth: AuthService = {
 			whatsapp: input.whatsapp.trim() || null,
 			outletCode: input.outletCode,
 			createdAt: new Date().toISOString(),
+			isAdmin: false,
 			password: input.password
 		};
 		db.users.push(user);

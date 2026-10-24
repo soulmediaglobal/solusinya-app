@@ -38,7 +38,8 @@ async function loadProfile(userId: string, email: string): Promise<Profile | nul
 		email,
 		whatsapp: data.whatsapp,
 		outletCode: data.outlet_code as OutletCode,
-		createdAt: data.created_at
+		createdAt: data.created_at,
+		isAdmin: Boolean(data.is_admin)
 	};
 }
 
