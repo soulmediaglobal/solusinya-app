@@ -40,7 +40,7 @@
 	}
 	@media (min-width: 480px) {
 		.screen {
-			min-height: min(860px, calc(100dvh - 48px));
+			min-height: 844px;
 		}
 	}
 	.body {

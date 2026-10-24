@@ -6,7 +6,17 @@
 	import type { LayoutProps } from './$types';
 
 	let { children }: LayoutProps = $props();
-	onMount(() => session.init());
+	// On desktop the app is shown as a 390x844 phone frame, scaled down to fit short windows.
+	let zoom = $state(1);
+	function fit() {
+		zoom = innerWidth >= 480 ? Math.min(1, (innerHeight - 32) / 844) : 1;
+	}
+	onMount(() => {
+		fit();
+		addEventListener('resize', fit);
+		session.init();
+		return () => removeEventListener('resize', fit);
+	});
 </script>
 
 <svelte:head>
@@ -14,7 +24,7 @@
 	<title>Solu Club</title>
 </svelte:head>
 
-<div class="shell">
+<div class="shell" style="--zoom: {zoom}">
 	{#if session.ready}
 		{@render children()}
 	{/if}
@@ -32,8 +42,13 @@
 	}
 	@media (min-width: 480px) {
 		.shell {
-			margin: 24px auto;
-			min-height: min(860px, calc(100dvh - 48px));
+			zoom: var(--zoom, 1);
+			width: 390px;
+			height: 844px;
+			min-height: 0;
+			margin: 16px auto;
+			overflow-y: auto;
+			scrollbar-width: none;
 			border-radius: 40px;
 			border: 1px solid rgba(255, 255, 255, 0.28);
 			box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
