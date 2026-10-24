@@ -24,28 +24,37 @@
 <style>
 	nav {
 		position: sticky;
-		bottom: 0;
+		bottom: calc(12px + env(safe-area-inset-bottom));
 		z-index: 5;
 		display: flex;
 		justify-content: space-between;
-		height: calc(70px + env(safe-area-inset-bottom));
-		padding: 0 10px calc(8px + env(safe-area-inset-bottom));
 		align-items: center;
-		background: var(--bg-deep);
-		border-top: 1px solid rgba(255, 255, 255, 0.12);
+		gap: 2px;
+		height: 62px;
+		margin: 0 14px calc(12px + env(safe-area-inset-bottom));
+		padding: 0 6px;
+		border-radius: 999px;
+		background: rgba(5, 4, 3, 0.94);
+		border: 1px solid rgba(255, 255, 255, 0.16);
+		box-shadow: 0 10px 28px rgba(0, 0, 0, 0.55);
+		backdrop-filter: blur(10px);
 	}
 	a {
 		flex: 1;
 		display: flex;
 		flex-direction: column;
 		align-items: center;
-		gap: 4px;
+		justify-content: center;
+		gap: 3px;
+		height: 50px;
+		border-radius: 999px;
 		color: rgba(255, 255, 255, 0.72);
 		text-decoration: none;
 		white-space: nowrap;
 	}
 	a.on {
 		color: var(--copper);
+		background: rgba(255, 255, 255, 0.08);
 	}
 	span {
 		font-size: 8.5px;
