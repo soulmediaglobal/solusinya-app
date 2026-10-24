@@ -8,8 +8,10 @@ import type { OtpError, OtpPurpose, Profile, SignUpInput } from '../types';
 export interface AuthService {
 	currentUser(): Promise<Profile | null>;
 	usernameAvailable(username: string): Promise<boolean>;
-	signUp(input: SignUpInput): Promise<Profile>;
-	signIn(username: string, password: string): Promise<Profile>;
+	/** Creates the account and emails a 6-digit code. The user is signed in only after `verifyOtp('signup', ...)`. */
+	signUp(input: SignUpInput): Promise<{ maskedEmail: string }>;
+	/** `identifier` is a username or an email. Throws AppError('email_unconfirmed', <masked email>) if the email was never verified. */
+	signIn(identifier: string, password: string): Promise<Profile>;
 	signOut(): Promise<void>;
 	/** Sends a 6-digit code to the account email. Never reveals whether the account exists. */
 	requestPasswordReset(identifier: string): Promise<{ maskedEmail: string }>;

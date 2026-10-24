@@ -20,7 +20,7 @@ export interface SignUpInput {
 	password: string;
 }
 
-export type OtpPurpose = 'reset' | 'email';
+export type OtpPurpose = 'signup' | 'reset' | 'email';
 export type OtpError = 'wrong' | 'expired';
 
 export class AppError extends Error {
@@ -30,6 +30,7 @@ export class AppError extends Error {
 			| 'email_taken'
 			| 'invalid_credentials'
 			| 'not_signed_in'
+			| 'email_unconfirmed'
 			| 'no_reset_session'
 			| 'weak_password',
 		message: string

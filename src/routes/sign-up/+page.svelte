@@ -6,7 +6,6 @@
 	import Button from '#lib/components/Button.svelte';
 	import { OUTLETS, type OutletCode } from '#lib/config';
 	import { auth } from '#lib/services';
-	import { session } from '#lib/stores/session.svelte';
 	import { AppError } from '#lib/types';
 	import { emailError, passwordError, usernameError } from '#lib/validation';
 
@@ -77,7 +76,7 @@
 		if (!validate()) return;
 		busy = true;
 		try {
-			const profile = await auth.signUp({
+			const { maskedEmail } = await auth.signUp({
 				username,
 				fullName,
 				email,
@@ -85,8 +84,7 @@
 				whatsapp,
 				password
 			});
-			session.set(profile);
-			await goto('/home', { replaceState: true });
+			await goto(`/verify?purpose=signup&to=${encodeURIComponent(maskedEmail)}`);
 		} catch (err) {
 			if (err instanceof AppError && err.code === 'username_taken') errors = { ...errors, username: 'This username is taken.' };
 			else if (err instanceof AppError && err.code === 'email_taken') errors = { ...errors, email: 'This email is already registered.' };

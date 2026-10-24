@@ -1,4 +1,5 @@
 <script lang="ts">
+	import { AppError } from '#lib/types';
 	import { goto } from '$app/navigation';
 	import Screen from '#lib/components/Screen.svelte';
 	import Field from '#lib/components/Field.svelte';
@@ -22,7 +23,12 @@
 		try {
 			session.set(await auth.signIn(username, password));
 			await goto('/home', { replaceState: true });
-		} catch {
+		} catch (err) {
+			if (err instanceof AppError && err.code === 'email_unconfirmed') {
+				await auth.resendOtp('signup');
+				await goto(`/verify?purpose=signup&to=${encodeURIComponent(err.message)}`);
+				return;
+			}
 			error = 'Username or password is incorrect.';
 		} finally {
 			busy = false;

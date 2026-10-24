@@ -6,18 +6,22 @@
 	import OtpInput from '#lib/components/OtpInput.svelte';
 	import Button from '#lib/components/Button.svelte';
 	import { OTP_LENGTH, OTP_TTL_MINUTES } from '#lib/config';
-	import { auth } from '#lib/services';
+	import { auth, isMock } from '#lib/services';
+	import { session } from '#lib/stores/session.svelte';
 	import { DEMO_OTP } from '#lib/services/mock/auth';
 	import type { OtpError, OtpPurpose } from '#lib/types';
 
-	const purpose = (page.url.searchParams.get('purpose') === 'email' ? 'email' : 'reset') as OtpPurpose;
+	const p = page.url.searchParams.get('purpose');
+	const purpose: OtpPurpose = p === 'email' || p === 'signup' ? p : 'reset';
 	const to = page.url.searchParams.get('to') ?? 'your email';
-	const backHref = purpose === 'email' ? '/home' : '/forgot';
+	const backHref = purpose === 'email' ? '/home' : purpose === 'signup' ? '/sign-up' : '/forgot';
 
 	const copy =
 		purpose === 'email'
 			? { title: 'Verify your new email', note: 'Your current email stays active until you verify.' }
-			: { title: 'Check your email', note: "Can't find it? Check your spam folder." };
+			: purpose === 'signup'
+				? { title: 'Verify your email', note: "Can't find it? Check your spam folder." }
+				: { title: 'Check your email', note: "Can't find it? Check your spam folder." };
 
 	let code = $state('');
 	let error = $state<OtpError | ''>('');
@@ -38,6 +42,7 @@
 		const res = await auth.verifyOtp(purpose, code);
 		busy = false;
 		if (res.ok) {
+			if (purpose === 'signup') session.set(await auth.currentUser());
 			await goto(purpose === 'reset' ? '/reset' : '/home', { replaceState: true });
 		} else {
 			error = res.error;
@@ -75,7 +80,7 @@
 	<div class="note">{copy.note}<br />The code expires in {OTP_TTL_MINUTES} minutes.</div>
 	<div class="status"><a class="link" href={backHref}>Wrong email? Change it</a></div>
 
-	{#if import.meta.env.DEV}
+	{#if isMock && import.meta.env.DEV}
 		<div class="dev">Demo only: {DEMO_OTP} is correct, 000000 is expired.</div>
 	{/if}
 

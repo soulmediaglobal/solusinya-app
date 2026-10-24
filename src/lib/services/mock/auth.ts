@@ -1,6 +1,7 @@
 import { OTP_TTL_MINUTES } from '../../config';
 import { AppError, type OtpError, type OtpPurpose, type Profile, type SignUpInput } from '../../types';
 import type { AuthService } from '../auth';
+import { maskEmail } from '../../mask';
 
 /** Demo OTP rules: 123456 is correct, 000000 behaves as expired, anything else is wrong. */
 export const DEMO_OTP = '123456';
@@ -15,6 +16,7 @@ interface Db {
 	otp: { purpose: OtpPurpose; userId: string | null; expiresAt: number } | null;
 	resetVerified: boolean;
 	resetUserId: string | null;
+	pendingSignupId?: string | null;
 }
 
 const KEY = 'solu.mock.db.v1';
@@ -50,11 +52,6 @@ function memberId(outlet: string, taken: Set<string>) {
 		if (!taken.has(id)) return id;
 	}
 }
-export function maskEmail(email: string) {
-	const [name, domain] = email.split('@');
-	if (!domain) return email;
-	return `${name.slice(0, 2)}${'*'.repeat(Math.max(1, name.length - 2))}@${domain}`;
-}
 
 export const mockAuth: AuthService = {
 	async currentUser() {
@@ -88,15 +85,17 @@ export const mockAuth: AuthService = {
 			password: input.password
 		};
 		db.users.push(user);
-		db.sessionUserId = user.id;
+		db.pendingSignupId = user.id;
+		db.otp = { purpose: 'signup', userId: user.id, expiresAt: Date.now() + OTP_TTL_MINUTES * 60_000 };
 		save(db);
-		return strip(user);
+		return { maskedEmail: maskEmail(email) };
 	},
 
-	async signIn(username, password) {
+	async signIn(identifier, password) {
 		await wait();
 		const db = load();
-		const u = db.users.find((x) => x.username === username.trim().toLowerCase());
+		const id = identifier.trim().toLowerCase();
+		const u = db.users.find((x) => x.username === id || x.email === id);
 		if (!u || u.password !== password) throw new AppError('invalid_credentials', 'Invalid credentials');
 		db.sessionUserId = u.id;
 		save(db);
@@ -129,6 +128,7 @@ export const mockAuth: AuthService = {
 		if (code === DEMO_EXPIRED_OTP || Date.now() > db.otp.expiresAt) return { ok: false, error: 'expired' as OtpError };
 		if (code !== DEMO_OTP) return { ok: false, error: 'wrong' as OtpError };
 		if (purpose === 'reset') db.resetVerified = true;
+		if (purpose === 'signup') db.sessionUserId = db.pendingSignupId ?? null;
 		db.otp = null;
 		save(db);
 		return { ok: true as const };
