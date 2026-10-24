@@ -5,7 +5,7 @@
 	const tabs: { href: string; label: string; icon: IconName }[] = [
 		{ href: '/home', label: 'Home', icon: 'home' },
 		{ href: '/rewards', label: 'Rewards', icon: 'gift' },
-		{ href: '/stamps', label: 'Stamps & beans', icon: 'bean' },
+		{ href: '/stamps', label: 'Beans', icon: 'bean' },
 		{ href: '/community', label: 'Community', icon: 'users' },
 		{ href: '/profile', label: 'Profile', icon: 'user' }
 	];
