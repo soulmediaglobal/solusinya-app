@@ -1,6 +1,6 @@
 import { OTP_TTL_MINUTES, type OutletCode } from '../../config';
 import { maskEmail } from '../../mask';
-import { AppError, type OtpError, type OtpPurpose, type Profile } from '../../types';
+import { AppError, type OtpError, type OtpPurpose, type Profile, type Social, type SocialPlatform } from '../../types';
 import type { AuthService } from '../auth';
 import { supabase } from './client';
 
@@ -27,19 +27,41 @@ function setPending(purpose: OtpPurpose, email: string) {
 	}
 }
 
+const CACHE_KEY = 'solu.profile';
+function cached(userId: string): Profile | null {
+	try {
+		const p = JSON.parse(localStorage.getItem(CACHE_KEY) ?? 'null') as Profile | null;
+		return p && p.id === userId ? p : null;
+	} catch {
+		return null;
+	}
+}
 async function loadProfile(userId: string, email: string): Promise<Profile | null> {
 	const { data, error } = await supabase.from('profiles').select('*').eq('id', userId).maybeSingle();
-	if (error || !data) return null;
+	// Offline or a network hiccup: show the last known profile instead of looking signed out.
+	if (error) return cached(userId);
+	if (!data) return null;
+	const profile = toProfile(data, email);
+	try {
+		localStorage.setItem(CACHE_KEY, JSON.stringify(profile));
+	} catch {
+		/* ignore */
+	}
+	return profile;
+}
+function toProfile(data: Record<string, unknown>, email: string): Profile {
 	return {
-		id: data.id,
-		memberId: data.member_id,
-		username: data.username,
-		fullName: data.full_name,
+		id: data.id as string,
+		memberId: data.member_id as string,
+		username: data.username as string,
+		fullName: data.full_name as string,
 		email,
-		whatsapp: data.whatsapp,
+		whatsapp: (data.whatsapp as string | null) ?? null,
 		outletCode: data.outlet_code as OutletCode,
-		createdAt: data.created_at,
-		isAdmin: Boolean(data.is_admin)
+		createdAt: data.created_at as string,
+		isAdmin: Boolean(data.is_admin),
+		birthday: (data.birthday as string | null) ?? null,
+		avatar: (data.avatar as string | null) ?? null
 	};
 }
 
@@ -109,6 +131,11 @@ export const supabaseAuth: AuthService = {
 
 	async signOut() {
 		await supabase.auth.signOut();
+		try {
+			localStorage.removeItem(CACHE_KEY);
+		} catch {
+			/* ignore */
+		}
 	},
 
 	async requestPasswordReset(identifier) {
@@ -145,5 +172,94 @@ export const supabaseAuth: AuthService = {
 		const { error } = await supabase.auth.updateUser({ password: newPassword });
 		if (error) throw new AppError('weak_password', error.message);
 		await supabase.auth.signOut();
+	},
+
+	async updateProfile(input) {
+		const { data: sess } = await supabase.auth.getSession();
+		const u = sess.session?.user;
+		if (!u) throw new AppError('not_signed_in', 'Not signed in');
+		const { error } = await supabase
+			.from('profiles')
+			.update({ full_name: input.fullName.trim(), username: input.username.trim().toLowerCase(), whatsapp: input.whatsapp.trim() || null })
+			.eq('id', u.id);
+		if (error) {
+			if (error.code === '23505') throw new AppError('username_taken', 'Username taken');
+			throw error;
+		}
+		return (await loadProfile(u.id, u.email ?? '')) as Profile;
+	},
+
+	async setBirthday(iso) {
+		const { data: sess } = await supabase.auth.getSession();
+		const u = sess.session?.user;
+		if (!u) throw new AppError('not_signed_in', 'Not signed in');
+		const { error } = await supabase.rpc('set_birthday', { p_date: iso });
+		if (error) throw error;
+		return (await loadProfile(u.id, u.email ?? '')) as Profile;
+	},
+
+	async setAvatar(dataUrl) {
+		const { data: sess } = await supabase.auth.getSession();
+		const u = sess.session?.user;
+		if (!u) throw new AppError('not_signed_in', 'Not signed in');
+		const { error } = await supabase.from('profiles').update({ avatar: dataUrl }).eq('id', u.id);
+		if (error) throw error;
+		return (await loadProfile(u.id, u.email ?? '')) as Profile;
+	},
+
+	async changePassword(current, next) {
+		const { data: sess } = await supabase.auth.getSession();
+		const email = sess.session?.user.email;
+		if (!email) throw new AppError('not_signed_in', 'Not signed in');
+		const check = await supabase.auth.signInWithPassword({ email, password: current });
+		if (check.error) throw new AppError('wrong_password', 'Wrong password');
+		const { error } = await supabase.auth.updateUser({ password: next });
+		if (error) throw new AppError('weak_password', error.message);
+	},
+
+	async requestEmailChange(newEmail) {
+		const email = newEmail.trim().toLowerCase();
+		const { error } = await supabase.auth.updateUser({ email });
+		if (error) {
+			if (/registered|exists|already/i.test(error.message)) throw new AppError('email_taken', error.message);
+			throw error;
+		}
+		setPending('email', email);
+		return { maskedEmail: maskEmail(email) };
+	},
+
+	async deleteAccount(password) {
+		const { data: sess } = await supabase.auth.getSession();
+		const email = sess.session?.user.email;
+		if (!email) throw new AppError('not_signed_in', 'Not signed in');
+		const check = await supabase.auth.signInWithPassword({ email, password });
+		if (check.error) throw new AppError('wrong_password', 'Wrong password');
+		const { error } = await supabase.rpc('delete_my_account');
+		if (error) throw error;
+		await this.signOut();
+	},
+
+	async socials() {
+		const { data: sess } = await supabase.auth.getSession();
+		const id = sess.session?.user.id;
+		if (!id) return [];
+		const { data } = await supabase.from('social_accounts').select('platform, handle').eq('user_id', id);
+		return (data ?? []).map((r): Social => ({ platform: r.platform as SocialPlatform, handle: r.handle }));
+	},
+
+	async saveSocials(list) {
+		const { data: sess } = await supabase.auth.getSession();
+		const id = sess.session?.user.id;
+		if (!id) throw new AppError('not_signed_in', 'Not signed in');
+		const keep = list.map((s) => s.platform);
+		const del = supabase.from('social_accounts').delete().eq('user_id', id);
+		const { error: e1 } = keep.length ? await del.not('platform', 'in', `(${keep.join(',')})`) : await del;
+		if (e1) throw e1;
+		if (list.length) {
+			const { error: e2 } = await supabase
+				.from('social_accounts')
+				.upsert(list.map((s) => ({ user_id: id, platform: s.platform, handle: s.handle.trim() })), { onConflict: 'user_id,platform' });
+			if (e2) throw e2;
+		}
 	}
 };

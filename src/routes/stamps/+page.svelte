@@ -128,9 +128,16 @@
 				</ul>
 			{:else}
 				{#if loaded}
-					<p class="empty">
-						{tab === 'redeemed' ? 'Nothing redeemed yet.' : 'No stamps or beans yet. Your first purchase will show up here.'}
-					</p>
+					{#if tab === 'redeemed'}
+						<p class="empty">Nothing redeemed yet.</p>
+					{:else}
+						<div class="none">
+							<span class="clock"><svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></svg></span>
+							<b>No activity yet</b>
+							<p>Show your QR at the cashier. Every purchase adds stamps and beans here.</p>
+							<a class="qr" href="/card">Show my QR</a>
+						</div>
+					{/if}
 				{/if}
 			{/each}
 		</div>
@@ -301,5 +308,52 @@
 		line-height: 18px;
 		color: var(--text-3);
 		text-align: center;
+	}
+	.none {
+		margin-top: 48px;
+		display: flex;
+		flex-direction: column;
+		align-items: center;
+		text-align: center;
+		gap: 10px;
+	}
+	.clock {
+		width: 72px;
+		height: 72px;
+		border-radius: 50%;
+		border: 1px solid rgba(189, 120, 78, 0.7);
+		background: rgba(189, 120, 78, 0.18);
+		color: var(--copper-light);
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		margin-bottom: 14px;
+	}
+	.none b {
+		font-size: 20px;
+		font-weight: 800;
+		letter-spacing: -0.04em;
+	}
+	.none p {
+		margin: 0;
+		max-width: 260px;
+		font-size: 13px;
+		line-height: 20px;
+		color: var(--text-2);
+	}
+	.qr {
+		margin-top: 14px;
+		width: 240px;
+		height: 50px;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		border-radius: 30px;
+		border: 1px solid rgba(255, 255, 255, 0.4);
+		background: var(--grad-primary);
+		color: #fff;
+		font-size: 13px;
+		font-weight: 700;
+		text-decoration: none;
 	}
 </style>

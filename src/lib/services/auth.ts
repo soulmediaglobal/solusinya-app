@@ -1,4 +1,4 @@
-import type { OtpError, OtpPurpose, Profile, SignUpInput } from '../types';
+import type { OtpError, OtpPurpose, Profile, SignUpInput, Social } from '../types';
 
 /**
  * Contract for everything the auth screens need.
@@ -20,4 +20,19 @@ export interface AuthService {
 	resendOtp(purpose: OtpPurpose): Promise<void>;
 	/** Only valid after a successful `verifyOtp('reset', ...)`. */
 	resetPassword(newPassword: string): Promise<void>;
+	/** Edits name, username and WhatsApp. Throws AppError('username_taken'). */
+	updateProfile(input: { fullName: string; username: string; whatsapp: string }): Promise<Profile>;
+	/** Sets the birthday once (ISO date). It cannot be changed afterwards. */
+	setBirthday(iso: string): Promise<Profile>;
+	/** Stores a small JPEG data URL, or removes the photo with null. */
+	setAvatar(dataUrl: string | null): Promise<Profile>;
+	/** Throws AppError('wrong_password') or AppError('weak_password'). */
+	changePassword(current: string, next: string): Promise<void>;
+	/** Emails a 6-digit code to the new address; confirm with `verifyOtp('email', ...)`. */
+	requestEmailChange(newEmail: string): Promise<{ maskedEmail: string }>;
+	/** Re-checks the password, then deletes the account and signs out. */
+	deleteAccount(password: string): Promise<void>;
+	socials(): Promise<Social[]>;
+	/** Replaces the member's social accounts with this list. */
+	saveSocials(list: Social[]): Promise<void>;
 }

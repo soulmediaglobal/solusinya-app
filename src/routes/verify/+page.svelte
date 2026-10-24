@@ -14,7 +14,7 @@
 	const p = page.url.searchParams.get('purpose');
 	const purpose: OtpPurpose = p === 'email' || p === 'signup' ? p : 'reset';
 	const to = page.url.searchParams.get('to') ?? 'your email';
-	const backHref = purpose === 'email' ? '/home' : purpose === 'signup' ? '/sign-up' : '/forgot';
+	const backHref = purpose === 'email' ? '/profile/edit' : purpose === 'signup' ? '/sign-up' : '/forgot';
 
 	const copy =
 		purpose === 'email'
@@ -42,7 +42,7 @@
 		const res = await auth.verifyOtp(purpose, code);
 		busy = false;
 		if (res.ok) {
-			if (purpose === 'signup') session.set(await auth.currentUser());
+			if (purpose === 'signup' || purpose === 'email') session.set(await auth.currentUser());
 			await goto(purpose === 'reset' ? '/reset' : '/home', { replaceState: true });
 		} else {
 			error = res.error;
@@ -90,7 +90,7 @@
 	{:else}
 		<Button onclick={verify} disabled={code.length !== OTP_LENGTH} loading={busy}>Verify</Button>
 	{/if}
-	<div class="foot-link">Having trouble? <a href="/sign-in">Contact us</a></div>
+	<div class="foot-link">Having trouble? <a href="/profile/help">Contact us</a></div>
 </Screen>
 
 <style>

@@ -1,5 +1,5 @@
 import { OTP_TTL_MINUTES } from '../../config';
-import { AppError, type OtpError, type OtpPurpose, type Profile, type SignUpInput } from '../../types';
+import { AppError, type OtpError, type OtpPurpose, type Profile, type SignUpInput, type Social } from '../../types';
 import type { AuthService } from '../auth';
 import { maskEmail } from '../../mask';
 
@@ -17,6 +17,8 @@ interface Db {
 	resetVerified: boolean;
 	resetUserId: string | null;
 	pendingSignupId?: string | null;
+	pendingEmail?: string | null;
+	socials?: Record<string, Social[]>;
 }
 
 const KEY = 'solu.mock.db.v1';
@@ -83,6 +85,8 @@ export const mockAuth: AuthService = {
 			outletCode: input.outletCode,
 			createdAt: new Date().toISOString(),
 			isAdmin: false,
+			birthday: null,
+			avatar: null,
 			password: input.password
 		};
 		db.users.push(user);
@@ -130,6 +134,11 @@ export const mockAuth: AuthService = {
 		if (code !== DEMO_OTP) return { ok: false, error: 'wrong' as OtpError };
 		if (purpose === 'reset') db.resetVerified = true;
 		if (purpose === 'signup') db.sessionUserId = db.pendingSignupId ?? null;
+		if (purpose === 'email') {
+			const me = db.users.find((x) => x.id === db.sessionUserId);
+			if (me && db.pendingEmail) me.email = db.pendingEmail;
+			db.pendingEmail = null;
+		}
 		db.otp = null;
 		save(db);
 		return { ok: true as const };
@@ -151,6 +160,86 @@ export const mockAuth: AuthService = {
 		if (u) u.password = newPassword;
 		db.resetVerified = false;
 		db.resetUserId = null;
+		save(db);
+	},
+
+	async updateProfile(input) {
+		await wait();
+		const db = load();
+		const me = db.users.find((x) => x.id === db.sessionUserId);
+		if (!me) throw new AppError('not_signed_in', 'Not signed in');
+		const username = input.username.trim().toLowerCase();
+		if (db.users.some((u) => u.id !== me.id && u.username === username)) throw new AppError('username_taken', 'Username taken');
+		me.fullName = input.fullName.trim();
+		me.username = username;
+		me.whatsapp = input.whatsapp.trim() || null;
+		save(db);
+		return strip(me);
+	},
+
+	async setBirthday(iso) {
+		await wait();
+		const db = load();
+		const me = db.users.find((x) => x.id === db.sessionUserId);
+		if (!me) throw new AppError('not_signed_in', 'Not signed in');
+		if (me.birthday) throw new Error('birthday already set');
+		me.birthday = iso;
+		save(db);
+		return strip(me);
+	},
+
+	async setAvatar(dataUrl) {
+		await wait(100);
+		const db = load();
+		const me = db.users.find((x) => x.id === db.sessionUserId);
+		if (!me) throw new AppError('not_signed_in', 'Not signed in');
+		me.avatar = dataUrl;
+		save(db);
+		return strip(me);
+	},
+
+	async changePassword(current, next) {
+		await wait();
+		const db = load();
+		const me = db.users.find((x) => x.id === db.sessionUserId);
+		if (!me) throw new AppError('not_signed_in', 'Not signed in');
+		if (me.password !== current) throw new AppError('wrong_password', 'Wrong password');
+		me.password = next;
+		save(db);
+	},
+
+	async requestEmailChange(newEmail) {
+		await wait();
+		const db = load();
+		const email = newEmail.trim().toLowerCase();
+		if (db.users.some((u) => u.email === email)) throw new AppError('email_taken', 'Email already registered');
+		db.pendingEmail = email;
+		db.otp = { purpose: 'email', userId: db.sessionUserId, expiresAt: Date.now() + OTP_TTL_MINUTES * 60_000 };
+		save(db);
+		return { maskedEmail: maskEmail(email) };
+	},
+
+	async deleteAccount(password) {
+		await wait();
+		const db = load();
+		const me = db.users.find((x) => x.id === db.sessionUserId);
+		if (!me) throw new AppError('not_signed_in', 'Not signed in');
+		if (me.password !== password) throw new AppError('wrong_password', 'Wrong password');
+		db.users = db.users.filter((u) => u.id !== me.id);
+		db.sessionUserId = null;
+		save(db);
+	},
+
+	async socials() {
+		const db = load();
+		return (db.socials?.[db.sessionUserId ?? ''] ?? []) as Social[];
+	},
+
+	async saveSocials(list) {
+		await wait();
+		const db = load();
+		if (!db.sessionUserId) throw new AppError('not_signed_in', 'Not signed in');
+		db.socials = { ...(db.socials ?? {}), [db.sessionUserId]: list };
 		save(db);
 	}
 };

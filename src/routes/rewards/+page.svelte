@@ -5,6 +5,7 @@
 	import Button from '#lib/components/Button.svelte';
 	import Icon from '#lib/components/Icon.svelte';
 	import { cardFill } from '#lib/format';
+	import { completeness } from '#lib/profile';
 	import { loyalty } from '#lib/services';
 	import type { Balance, Milestone, Reward, Voucher } from '#lib/services/loyalty';
 	import { session } from '#lib/stores/session.svelte';
@@ -39,6 +40,7 @@
 
 	const mine = $derived(vouchers.filter((v) => isUsable(v)));
 	const fill = $derived(cardFill(balance.stamps));
+	const gated = $derived(session.user ? !completeness(session.user).complete : false);
 
 	async function confirm() {
 		if (!pick || busy) return;
@@ -52,7 +54,7 @@
 			tab = 'mine';
 			await load();
 		} catch (e) {
-			error = e instanceof Error && /enough/.test(e.message) ? 'Not enough beans for this reward.' : 'Something went wrong. Please try again.';
+			error = e instanceof Error && /enough/.test(e.message) ? 'Not enough beans for this reward.' : e instanceof Error && /incomplete/.test(e.message) ? 'Complete your profile to redeem rewards.' : 'Something went wrong. Please try again.';
 		} finally {
 			busy = false;
 		}
@@ -74,6 +76,14 @@
 				<button role="tab" aria-selected={tab === 'get'} class:on={tab === 'get'} onclick={() => (tab = 'get')}>Get rewards</button>
 			</div>
 
+			{#if gated}
+				<a class="gate" href="/profile/edit">
+					<Icon name="lock" size={18} />
+					<span>Complete your profile to {tab === 'mine' ? 'use' : 'redeem'} your rewards</span>
+					<b>Complete ›</b>
+				</a>
+			{/if}
+
 			{#if toast}<div class="toast" role="status"><Icon name="check" size={15} /> {toast}</div>{/if}
 
 			{#if tab === 'mine'}
@@ -85,12 +95,14 @@
 							<div class="rn">{sourceNote(v)}</div>
 							<div class="exp">{expiryLabel(v.expiresAt)}</div>
 						</div>
-						<div class="tr"><a class="use" href="/rewards/use?id={v.id}">Use</a></div>
+						<div class="tr">
+							{#if gated}<a class="use lock" href="/profile/edit"><Icon name="lock" size={13} /> Use</a>{:else}<a class="use" href="/rewards/use?id={v.id}">Use</a>{/if}
+						</div>
 					</article>
 				{:else}
 					{#if loaded}
 						<div class="empty">
-							<span class="ei"><Icon name="gift" size={26} /></span>
+							<img class="mascot" src="/img/solu-wave.png" alt="" />
 							<b>No rewards yet</b>
 							<p>Collect stamps or redeem beans to get your first reward.</p>
 							<button class="alt" onclick={() => (tab = 'get')}>See how to get rewards</button>
@@ -109,6 +121,8 @@
 						</div>
 						{#if need > 0}
 							<span class="more">{need.toLocaleString('id-ID')} more beans</span>
+						{:else if gated}
+							<a class="more lockd" href="/profile/edit"><Icon name="lock" size={12} /> Locked</a>
 						{:else}
 							<button class="redeem" onclick={() => { error = ''; pick = r; }}>Redeem</button>
 						{/if}
@@ -311,16 +325,6 @@
 		line-height: 18px;
 		color: var(--text-2);
 	}
-	.ei {
-		display: inline-flex;
-		width: 56px;
-		height: 56px;
-		align-items: center;
-		justify-content: center;
-		border-radius: 50%;
-		background: rgba(189, 120, 78, 0.18);
-		color: var(--copper-light);
-	}
 	.alt {
 		height: 40px;
 		padding: 0 20px;
@@ -518,5 +522,50 @@
 		font-size: 13px;
 		font-weight: 700;
 		cursor: pointer;
+	}
+	.gate {
+		display: flex;
+		align-items: center;
+		gap: 12px;
+		margin-top: 16px;
+		height: 56px;
+		padding: 0 16px;
+		border-radius: 14px;
+		border: 1px solid rgba(224, 138, 120, 0.55);
+		background: rgba(224, 138, 120, 0.1);
+		color: var(--copper-light);
+		text-decoration: none;
+	}
+	.gate span {
+		flex: 1;
+		font-size: 12px;
+		font-weight: 700;
+		line-height: 16px;
+		color: #fff;
+	}
+	.gate b {
+		font-size: 12px;
+		font-weight: 800;
+		white-space: nowrap;
+	}
+	.use.lock {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		background: rgba(255, 255, 255, 0.08);
+		border: 1px solid rgba(255, 255, 255, 0.18);
+		color: rgba(255, 255, 255, 0.5);
+	}
+	.lockd {
+		display: inline-flex;
+		align-items: center;
+		gap: 5px;
+		text-decoration: none;
+	}
+	.mascot {
+		width: 96px;
+		height: 182px;
+		object-fit: contain;
+		filter: drop-shadow(0 10px 16px rgba(0, 0, 0, 0.5));
 	}
 </style>

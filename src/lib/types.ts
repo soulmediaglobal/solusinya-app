@@ -10,6 +10,23 @@ export interface Profile {
 	outletCode: OutletCode;
 	createdAt: string; // ISO
 	isAdmin: boolean;
+	/** ISO date (YYYY-MM-DD); once set it cannot be changed */
+	birthday: string | null;
+	/** small JPEG as a data URL */
+	avatar: string | null;
+}
+
+export const SOCIALS = [
+	{ key: 'discord', label: 'Discord', xp: 30, placeholder: 'username' },
+	{ key: 'instagram', label: 'Instagram', xp: 10, placeholder: '@username' },
+	{ key: 'tiktok', label: 'TikTok', xp: 10, placeholder: '@username' },
+	{ key: 'telegram', label: 'Telegram', xp: 10, placeholder: '@username' },
+	{ key: 'facebook', label: 'Facebook', xp: 10, placeholder: 'name or profile link' }
+] as const;
+export type SocialPlatform = (typeof SOCIALS)[number]['key'];
+export interface Social {
+	platform: SocialPlatform;
+	handle: string;
 }
 
 export interface SignUpInput {
@@ -33,7 +50,8 @@ export class AppError extends Error {
 			| 'not_signed_in'
 			| 'email_unconfirmed'
 			| 'no_reset_session'
-			| 'weak_password',
+			| 'weak_password'
+			| 'wrong_password',
 		message: string
 	) {
 		super(message);

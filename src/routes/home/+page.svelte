@@ -3,6 +3,9 @@
 	import AppScreen from '#lib/components/AppScreen.svelte';
 	import PhotoHeader from '#lib/components/PhotoHeader.svelte';
 	import Icon from '#lib/components/Icon.svelte';
+	import InstallPrompt from '#lib/components/InstallPrompt.svelte';
+	import { levelFor, type LevelState } from '#lib/levels';
+	import { completeness } from '#lib/profile';
 	import Qr from '#lib/components/Qr.svelte';
 	import { cardFill, greeting, outletName, rp, whenLabel } from '#lib/format';
 	import { loyalty } from '#lib/services';
@@ -18,11 +21,13 @@
 	let activity = $state<Activity[]>([]);
 	let promos = $state<Promotion[]>([]);
 	let vouchers = $state<Voucher[]>([]);
+	let lv = $state<LevelState | null>(null);
 	let slide = $state(0);
 	let loaded = $state(false);
 	$effect(() => {
 		if (!session.user) return;
-		Promise.all([loyalty.balance(), loyalty.activity(5), loyalty.promotions(), loyalty.vouchers()]).then(([b, a, p, v]) => {
+		Promise.all([loyalty.balance(), loyalty.activity(5), loyalty.promotions(), loyalty.vouchers(), loyalty.xp(), loyalty.levels()]).then(([b, a, p, v, x, l]) => {
+			lv = levelFor(x, l);
 			balance = b;
 			activity = a;
 			promos = p;
@@ -37,6 +42,7 @@
 	const fill = $derived(cardFill(balance.stamps));
 	const next = $derived(fill + 1);
 	const ready = $derived(vouchers.filter((v) => isUsable(v)));
+	const comp = $derived(user ? completeness(user) : null);
 	function onScroll(e: Event) {
 		const el = e.currentTarget as HTMLElement;
 		slide = Math.round(el.scrollLeft / 312);
@@ -52,9 +58,12 @@
 			<header>
 				<div class="hi">{greeting()}</div>
 				<div class="name">{first}</div>
+				{#if lv}
+					<a class="lvl" href="/community/levels"><i>{lv.current.level}</i> Level {lv.current.level} · {lv.current.name}</a>
+				{/if}
 			</header>
 
-			<a class="beans" href="/stamps">
+			<a class="beans" class:tight={!!lv} href="/stamps">
 				<span class="bi"><Icon name="bean" size={17} /></span>
 				<span><b>{balance.beans.toLocaleString('id-ID')}</b> <small>beans</small></span>
 				<span class="chev"><Icon name="chevron" size={16} /></span>
@@ -89,7 +98,16 @@
 				{/each}
 			</div>
 
-			{#if ready.length}
+			{#if comp && !comp.complete}
+				<a class="ready lockedcard" href="/profile/edit">
+					<span class="ri"><Icon name="lock" size={20} /></span>
+					<div class="rtx">
+						<b>Complete your profile</b>
+						<small>{ready.length ? `${ready.length} ${ready.length === 1 ? 'reward' : 'rewards'} locked · ` : ''}{comp.done} of {comp.total} done</small>
+					</div>
+					<span class="rv">Complete</span>
+				</a>
+			{:else if ready.length}
 				<a class="ready" href="/rewards">
 					<span class="ri"><Icon name="gift" size={20} /></span>
 					<div class="rtx">
@@ -154,6 +172,7 @@
 
 			<a class="showqr" href="/card"><Icon name="qr" size={18} /> Show my QR</a>
 		</div>
+		<InstallPrompt />
 	</AppScreen>
 {/if}
 
@@ -641,5 +660,41 @@
 		font-weight: 700;
 		text-decoration: none;
 		box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
+	}
+	.lvl {
+		display: inline-flex;
+		align-items: center;
+		gap: 7px;
+		margin-top: 8px;
+		height: 24px;
+		padding: 0 10px 0 4px;
+		border-radius: 999px;
+		border: 1px solid rgba(189, 120, 78, 0.55);
+		background: rgba(9, 7, 5, 0.6);
+		color: var(--copper-light);
+		font-size: 10px;
+		font-weight: 700;
+		text-decoration: none;
+		white-space: nowrap;
+	}
+	.lvl i {
+		font-style: normal;
+		width: 17px;
+		height: 17px;
+		border-radius: 50%;
+		background: var(--grad-primary);
+		color: #fff;
+		display: flex;
+		align-items: center;
+		justify-content: center;
+		font-size: 10px;
+		font-weight: 800;
+	}
+	.beans.tight {
+		margin-top: 28px;
+	}
+	.lockedcard {
+		border-color: rgba(224, 138, 120, 0.55);
+		background: rgba(224, 138, 120, 0.1);
 	}
 </style>

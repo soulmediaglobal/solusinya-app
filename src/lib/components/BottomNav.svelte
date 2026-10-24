@@ -9,11 +9,12 @@
 		{ href: '/community', label: 'Community', icon: 'users' },
 		{ href: '/profile', label: 'Profile', icon: 'user' }
 	];
+	const active = (href: string) => page.url.pathname === href || page.url.pathname.startsWith(href + '/');
 </script>
 
 <nav aria-label="Main">
 	{#each tabs as t (t.href)}
-		<a href={t.href} class:on={page.url.pathname === t.href} aria-current={page.url.pathname === t.href ? 'page' : undefined}>
+		<a href={t.href} class:on={active(t.href)} aria-current={active(t.href) ? 'page' : undefined}>
 			<Icon name={t.icon} size={22} />
 			<span>{t.label}</span>
 		</a>

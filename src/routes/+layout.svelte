@@ -1,6 +1,10 @@
 <script lang="ts">
 	import '../app.css';
 	import favicon from '#lib/assets/favicon.svg';
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
+	import Button from '#lib/components/Button.svelte';
+	import StateScreen from '#lib/components/StateScreen.svelte';
 	import { onMount } from 'svelte';
 	import { session } from '#lib/stores/session.svelte';
 	import type { LayoutProps } from './$types';
@@ -25,7 +29,20 @@
 </svelte:head>
 
 <div class="shell" style="--zoom: {zoom}">
-	{#if session.ready}
+	{#if session.expired}
+		<StateScreen icon="lock" title="Session expired" note="For your security, please sign in again to continue.">
+			{#snippet actions()}
+				<Button onclick={() => { session.clearExpired(); goto('/sign-in', { replaceState: true }); }}>Sign in</Button>
+			{/snippet}
+		</StateScreen>
+	{:else if session.ready && session.user && !session.online && page.url.pathname !== '/card'}
+		<StateScreen icon="offline" title="You are offline" note="Reconnect to see your latest stamps, beans and rewards. Your member QR is saved and still works.">
+			{#snippet actions()}
+				<Button onclick={() => location.reload()}>Try again</Button>
+				<Button variant="ghost" href="/card">Show my QR</Button>
+			{/snippet}
+		</StateScreen>
+	{:else if session.ready}
 		{@render children()}
 	{/if}
 </div>
