@@ -643,15 +643,12 @@
 		color: var(--copper-light);
 	}
 	.showqr {
-		position: sticky;
-		bottom: calc(82px + env(safe-area-inset-bottom));
-		z-index: 4;
 		display: flex;
 		align-items: center;
 		justify-content: center;
 		gap: 10px;
 		height: 50px;
-		margin: 28px 4px 12px;
+		margin: 20px 4px 24px;
 		border-radius: 30px;
 		border: 1px solid rgba(255, 255, 255, 0.4);
 		background: var(--grad-primary);
@@ -659,7 +656,6 @@
 		font-size: 13px;
 		font-weight: 700;
 		text-decoration: none;
-		box-shadow: 0 8px 20px rgba(0, 0, 0, 0.4);
 	}
 	.lvl {
 		display: inline-flex;
