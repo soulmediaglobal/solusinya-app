@@ -81,7 +81,26 @@ export interface AdminTx {
 	memberId: string;
 }
 
+export interface Level {
+	level: number;
+	name: string;
+	minXp: number;
+	perks: string;
+}
+export interface Sticker {
+	id: string;
+	name: string;
+	/** null for seasonal stickers */
+	unlockLevel: number | null;
+	season: string | null;
+	image: string;
+}
+
 export interface LoyaltyService {
+	/** Signed-in member's XP (beans earned + visits + completed cards). */
+	xp(): Promise<number>;
+	levels(): Promise<Level[]>;
+	stickers(): Promise<Sticker[]>;
 	/** Balance of the signed-in member. */
 	balance(): Promise<Balance>;
 	/** Active banners for the Home slider (max 5), in display order. */

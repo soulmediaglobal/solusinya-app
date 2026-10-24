@@ -1,4 +1,4 @@
-import type { Activity, AdminTx, Balance, LedgerEntry, LoyaltyService, MemberLookup, Milestone, Promotion, Reward, Voucher, VoucherPeek } from '../loyalty';
+import type { Activity, AdminTx, Balance, Level, Sticker, LedgerEntry, LoyaltyService, MemberLookup, Milestone, Promotion, Reward, Voucher, VoucherPeek } from '../loyalty';
 import { supabase } from './client';
 
 async function uid() {
@@ -27,6 +27,21 @@ function toVoucher(r: Record<string, unknown>): Voucher {
 const clean = (q: string) => q.trim().replace(/[^A-Za-z0-9._-]/g, '');
 
 export const supabaseLoyalty: LoyaltyService = {
+	async xp() {
+		const { data } = await supabase.from('member_xp').select('xp').eq('user_id', await uid()).maybeSingle();
+		return data?.xp ?? 0;
+	},
+
+	async levels() {
+		const { data } = await supabase.from('levels').select('level, name, min_xp, perks').order('level');
+		return (data ?? []).map((r): Level => ({ level: r.level, name: r.name, minXp: r.min_xp, perks: r.perks }));
+	},
+
+	async stickers() {
+		const { data } = await supabase.from('stickers').select('id, name, unlock_level, season, image').eq('active', true).order('sort');
+		return (data ?? []).map((r): Sticker => ({ id: r.id, name: r.name, unlockLevel: r.unlock_level, season: r.season, image: r.image }));
+	},
+
 	async balance() {
 		// Filter by user: admins can read every member's rows, but this is the signed-in member's own balance.
 		const { data } = await supabase

@@ -1,4 +1,4 @@
-import type { Activity, LedgerEntry, LoyaltyService, Milestone, Promotion, Reward, Voucher } from '../loyalty';
+import type { Activity, LedgerEntry, Level, Sticker, LoyaltyService, Milestone, Promotion, Reward, Voucher } from '../loyalty';
 
 /** Without Supabase (no .env) the app shows sample data so screens can be built and checked offline. Admin tools are disabled. */
 const day = 86_400_000;
@@ -24,6 +24,21 @@ const ledger = ([
 	{ id: 'r1', kind: 'beans', delta: -100, reason: 'redeem', createdAt: at(8, 10, 30), amountRp: null, outletCode: null }
 ] as LedgerEntry[]).sort((a, b) => b.createdAt.localeCompare(a.createdAt));
 
+const levelList: Level[] = [
+	{ level: 1, name: 'Green Bean', minXp: 0, perks: 'Starter stickers' },
+	{ level: 2, name: 'Light Roast', minXp: 200, perks: 'Level 2 stickers · Discord role' },
+	{ level: 3, name: 'Medium Roast', minXp: 600, perks: 'More stickers · Discord role' },
+	{ level: 4, name: 'Dark Roast', minXp: 1500, perks: 'Early access to new menu' },
+	{ level: 5, name: 'Solu Legend', minXp: 3000, perks: 'Legend sticker · event invites' }
+];
+const stickerLevels = [1, 1, 2, 3, 3, 3, 4, 4, 4, 5, 5, null];
+const stickerList: Sticker[] = stickerLevels.map((l, i) => ({
+	id: 's' + i,
+	name: i === 0 ? 'Solu says hi' : i === 1 ? 'Cheers!' : i === 2 ? 'Good morning' : l === null ? 'Season 1 sticker' : `Sticker ${i + 1}`,
+	unlockLevel: l,
+	season: l === null ? 'Season 1' : null,
+	image: '/img/solu-wave.png'
+}));
 const promos: Promotion[] = [
 	{ id: '1', kicker: 'WEEKEND', title: 'Double stamps', subtitle: 'Every Saturday and Sunday', focusX: 12, focusY: 50 },
 	{ id: '2', kicker: 'NEW MENU', title: 'Seasonal brew is here', subtitle: 'Try it at Dramaga this month', focusX: 80, focusY: 40 },
@@ -46,6 +61,15 @@ const vouchers: Voucher[] = [
 const sum = (k: string) => ledger.filter((e) => e.kind === k).reduce((a, e) => a + e.delta, 0);
 
 export const mockLoyalty: LoyaltyService = {
+	async xp() {
+		return ledger.filter((e) => e.kind === 'beans' && e.delta > 0).reduce((n, e) => n + e.delta, 0) + 10 * buys.length;
+	},
+	async levels() {
+		return levelList;
+	},
+	async stickers() {
+		return stickerList;
+	},
 	async promotions() {
 		return promos;
 	},
