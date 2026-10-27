@@ -110,6 +110,7 @@
 			<Button type="submit" loading={busy} disabled={!found || amountNum <= 0}>Record transaction</Button>
 		</form>
 		<a class="tool" href="/admin/reward">Validate a reward code ›</a>
+		<a class="tool" href="/admin/crm">Open the CRM dashboard ›</a>
 
 		<section class="recent">
 			<h2>Latest transactions</h2>

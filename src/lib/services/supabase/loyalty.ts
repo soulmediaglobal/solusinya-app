@@ -1,4 +1,4 @@
-import type { Activity, AdminTx, Balance, Level, Sticker, LedgerEntry, LoyaltyService, MemberLookup, Milestone, Promotion, Reward, Voucher, VoucherPeek } from '../loyalty';
+import type { Activity, CrmInsights, CrmMemberDetail, CrmMemberRow, AdminTx, Balance, Level, Sticker, LedgerEntry, LoyaltyService, MemberLookup, Milestone, Promotion, Reward, Voucher, VoucherPeek } from '../loyalty';
 import { supabase } from './client';
 
 async function uid() {
@@ -203,5 +203,67 @@ export const supabaseLoyalty: LoyaltyService = {
 				memberId: m?.member_id ?? ''
 			} satisfies AdminTx;
 		});
+	},
+
+	async crmDashboard(days) {
+		const { data, error } = await supabase.rpc('crm_dashboard', { p_days: days });
+		if (error) throw new Error(error.message);
+		const r = data as any;
+		const n = (v: unknown) => Number(v ?? 0);
+		return {
+			days: n(r.days),
+			generatedAt: r.generated_at,
+			members: {
+				total: n(r.members.total),
+				newInPeriod: n(r.members.new_in_period),
+				activeInPeriod: n(r.members.active_in_period),
+				dormant30d: n(r.members.dormant_30d),
+				neverVisited: n(r.members.never_visited),
+				unverified: n(r.members.unverified),
+				signups: r.members.signups.map((x: any) => ({ d: x.d, n: n(x.n) }))
+			},
+			sales: {
+				revenue: n(r.sales.revenue),
+				visits: n(r.sales.visits),
+				avgTicket: n(r.sales.avg_ticket),
+				prevRevenue: n(r.sales.prev_revenue),
+				prevVisits: n(r.sales.prev_visits),
+				byOutlet: r.sales.by_outlet.map((o: any) => ({ code: o.code, name: o.name, revenue: n(o.revenue), visits: n(o.visits), members: n(o.members) })),
+				daily: r.sales.daily.map((x: any) => ({ d: x.d, revenue: n(x.revenue), visits: n(x.visits) }))
+			},
+			segments: {
+				levels: r.segments.levels.map((l: any) => ({ level: n(l.level), name: l.name, members: n(l.members) })),
+				topSpenders: r.segments.top_spenders.map((m: any) => ({ username: m.username, fullName: m.full_name, outletCode: m.outlet_code, total: n(m.total), visits: n(m.visits), lastVisit: m.last_visit })),
+				atRisk: r.segments.at_risk.map((m: any) => ({ username: m.username, fullName: m.full_name, whatsapp: m.whatsapp ?? null, total: n(m.total), visits: n(m.visits), lastVisit: m.last_visit, daysSince: n(m.days_since) })),
+				birthdays: r.segments.birthdays.map((m: any) => ({ username: m.username, fullName: m.full_name, whatsapp: m.whatsapp ?? null, day: n(m.day) }))
+			},
+			rewards: {
+				available: n(r.rewards.available),
+				active: n(r.rewards.active),
+				used: n(r.rewards.used),
+				expired: n(r.rewards.expired),
+				issuedInPeriod: n(r.rewards.issued_in_period),
+				usedInPeriod: n(r.rewards.used_in_period),
+				bySource: { stamp: n(r.rewards.by_source.stamp), beans: n(r.rewards.by_source.beans) },
+				byReward: r.rewards.by_reward.map((x: any) => ({ name: x.name, issued: n(x.issued), used: n(x.used), expired: n(x.expired) }))
+			}
+		};
+	},
+	async crmInsights(days) {
+		const { data, error } = await supabase.rpc('crm_insights', { p_days: days });
+		if (error) throw new Error(error.message);
+		return data as CrmInsights;
+	},
+
+	async crmMembers(query, limit = 100) {
+		const { data, error } = await supabase.rpc('crm_members', { p_q: query, p_limit: limit });
+		if (error) throw new Error(error.message);
+		return data as CrmMemberRow[];
+	},
+
+	async crmMember(username) {
+		const { data, error } = await supabase.rpc('crm_member', { p_username: username });
+		if (error) throw new Error(error.message);
+		return data as CrmMemberDetail;
 	}
 };

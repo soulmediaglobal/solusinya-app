@@ -1,0 +1,51 @@
+/* Shared look for the CRM sub-pages (Insights, Members, Member detail). */
+.crm-page { max-width: 1180px; margin: 0 auto; padding: 28px 24px 56px; }
+.crm-top { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; flex-wrap: wrap; margin-bottom: 22px; }
+.crm-top .back { font-size: 12px; font-weight: 600; color: var(--copper-soft); text-decoration: none; }
+.crm-top h1 { margin: 6px 0 10px; font-size: 28px; font-weight: 800; letter-spacing: -0.01em; }
+.crm-top .sub { margin: 8px 0 0; font-size: 12px; color: var(--text-3); }
+.crm-range { display: flex; gap: 6px; }
+.crm-range button { height: 36px; padding: 0 14px; border-radius: 999px; border: 1px solid var(--line); background: transparent; color: var(--text-2); font-size: 12px; font-weight: 700; cursor: pointer; }
+.crm-range button.on { background: var(--grad-primary); border-color: transparent; color: #fff; }
+.crm-alert { margin-bottom: 16px; padding: 12px 16px; border-radius: 12px; border: 1px solid var(--error); color: var(--error); font-size: 13px; font-weight: 600; }
+.crm-loading { color: var(--text-3); font-size: 14px; }
+.crm-stack { display: flex; flex-direction: column; gap: 16px; transition: opacity 0.15s; }
+.crm-stack.dim { opacity: 0.55; }
+.crm-grid2 { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.crm-grid3 { display: grid; grid-template-columns: 2fr 1fr; gap: 16px; }
+.crm-card { min-width: 0; padding: 18px 18px 16px; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.14); background: var(--surface); }
+.crm-card h2 { margin: 0 0 14px; font-size: 14px; font-weight: 800; }
+.crm-card h2 small { margin-left: 6px; font-size: 11px; font-weight: 500; color: var(--text-3); }
+.crm-card .cap { margin: 12px 0 0; font-size: 11px; line-height: 17px; color: var(--text-3); }
+.crm-kpis { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; }
+.crm-kpi { display: flex; flex-direction: column; gap: 4px; min-width: 0; padding: 14px 16px; border-radius: 16px; border: 1px solid rgba(255, 255, 255, 0.14); background: var(--surface); }
+.crm-kpi .k { font-size: 9px; font-weight: 700; letter-spacing: 0.2em; text-transform: uppercase; color: var(--copper-soft); }
+.crm-kpi b { font-size: 24px; font-weight: 800; line-height: 30px; }
+.crm-kpi .note { font-size: 11px; color: var(--text-3); }
+.crm-table { width: 100%; border-collapse: collapse; font-size: 12px; }
+.crm-table th { padding: 0 8px 8px; text-align: left; font-size: 9px; font-weight: 700; letter-spacing: 0.16em; text-transform: uppercase; color: var(--copper-soft); white-space: nowrap; }
+.crm-table td { padding: 10px 8px; border-top: 1px solid rgba(255, 255, 255, 0.08); vertical-align: middle; white-space: nowrap; }
+.crm-table td b { display: block; font-size: 12px; }
+.crm-table td span { display: block; font-size: 10px; color: var(--text-3); }
+.crm-table td span.crm-chip { display: inline-block; font-size: 10px; color: var(--copper-light); }
+.crm-table td span.crm-chip.ok { color: var(--success); }
+.crm-table td span.crm-chip.bad { color: var(--error); }
+.crm-table td span.crm-chip.mute { color: var(--text-3); }
+.crm-table .r { text-align: right; }
+.crm-table tr.link { cursor: pointer; }
+.crm-table tr.link:hover td { background: rgba(255, 255, 255, 0.04); }
+.crm-scroll { overflow-x: auto; }
+.crm-chip { display: inline-block; padding: 3px 10px; border-radius: 999px; background: rgba(255, 255, 255, 0.08); font-size: 10px; font-weight: 700; color: var(--copper-light); white-space: nowrap; }
+.crm-chip.ok { color: var(--success); }
+.crm-chip.bad { color: var(--error); }
+.crm-chip.mute { color: var(--text-3); }
+.crm-empty { margin: 0; font-size: 13px; color: var(--text-3); }
+.crm-btn { display: inline-block; padding: 6px 12px; border-radius: 999px; border: 1px solid var(--copper); color: var(--copper-light); font-size: 11px; font-weight: 700; text-decoration: none; }
+@media (max-width: 960px) {
+	.crm-grid2, .crm-grid3 { grid-template-columns: 1fr; }
+	.crm-kpis { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 560px) {
+	.crm-page { padding: 20px 16px 48px; }
+	.crm-kpis { grid-template-columns: repeat(2, 1fr); }
+}

@@ -12,6 +12,8 @@
 	let { children }: LayoutProps = $props();
 	// On desktop the app is shown as a 390x844 phone frame, scaled down to fit short windows.
 	let zoom = $state(1);
+	// The CRM dashboard is a wide desktop screen, so it skips the phone frame.
+	const wide = $derived(page.url.pathname.startsWith('/admin/crm'));
 	function fit() {
 		zoom = innerWidth >= 480 ? Math.min(1, (innerHeight - 32) / 844) : 1;
 	}
@@ -28,7 +30,7 @@
 	<title>Solu Club</title>
 </svelte:head>
 
-<div class="shell" style="--zoom: {zoom}">
+<div class="shell" class:wide style="--zoom: {zoom}">
 	{#if session.expired}
 		<StateScreen icon="lock" title="Session expired" note="For your security, please sign in again to continue.">
 			{#snippet actions()}
@@ -71,5 +73,18 @@
 			border: 1px solid rgba(255, 255, 255, 0.28);
 			box-shadow: 0 18px 40px rgba(0, 0, 0, 0.5);
 		}
+	}
+	.shell.wide {
+		max-width: none;
+		width: 100%;
+		height: auto;
+		min-height: 100dvh;
+		margin: 0;
+		zoom: 1;
+		overflow: visible;
+		border: 0;
+		border-radius: 0;
+		box-shadow: none;
+		transform: none;
 	}
 </style>

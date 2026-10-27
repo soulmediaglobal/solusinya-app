@@ -96,6 +96,133 @@ export interface Sticker {
 	image: string;
 }
 
+/** Admin CRM overview (one database call, see supabase/007_crm.sql). */
+export interface CrmDashboard {
+	days: number;
+	generatedAt: string;
+	members: {
+		total: number;
+		newInPeriod: number;
+		activeInPeriod: number;
+		dormant30d: number;
+		neverVisited: number;
+		unverified: number;
+		signups: { d: string; n: number }[];
+	};
+	sales: {
+		revenue: number;
+		visits: number;
+		avgTicket: number;
+		prevRevenue: number;
+		prevVisits: number;
+		byOutlet: { code: string; name: string; revenue: number; visits: number; members: number }[];
+		daily: { d: string; revenue: number; visits: number }[];
+	};
+	segments: {
+		levels: { level: number; name: string; members: number }[];
+		topSpenders: { username: string; fullName: string; outletCode: string; total: number; visits: number; lastVisit: string }[];
+		atRisk: { username: string; fullName: string; whatsapp: string | null; total: number; visits: number; lastVisit: string; daysSince: number }[];
+		birthdays: { username: string; fullName: string; whatsapp: string | null; day: number }[];
+	};
+	rewards: {
+		available: number;
+		active: number;
+		used: number;
+		expired: number;
+		issuedInPeriod: number;
+		usedInPeriod: number;
+		bySource: { stamp: number; beans: number };
+		byReward: { name: string; issued: number; used: number; expired: number }[];
+	};
+}
+
+export interface CrmInsights {
+	days: number;
+	generatedAt: string;
+	cohorts: { month: string; size: number; retained: (number | null)[] }[];
+	/** d = 1 (Mon) .. 7 (Sun), h = hour 0-23 in Jakarta time */
+	heatmap: { d: number; h: number; n: number }[];
+	funnel: { registered: number; verified: number; firstVisit: number; repeat: number; completedCard: number };
+	ticketHist: { label: string; n: number }[];
+	visitsDist: { label: string; n: number }[];
+	outletRadar: { code: string; name: string; revenue: number; visits: number; avgTicket: number; members: number; repeatMembers: number; newMembers: number }[];
+	crossover: { a: string; b: string; n: number }[];
+	scatter: { username: string; visits: number; total: number; daysSince: number; level: number }[];
+}
+
+export interface CrmMemberRow {
+	username: string;
+	fullName: string;
+	memberId: string;
+	email: string;
+	homeOutlet: string;
+	createdAt: string;
+	level: string;
+	xp: number;
+	visits: number;
+	total: number;
+	lastVisit: string | null;
+	outlets: number;
+}
+
+export interface CrmRadarMetrics {
+	frequency: number;
+	monetary: number;
+	recency: number;
+	variety: number;
+	loyalty: number;
+	engagement: number;
+}
+
+export interface CrmMemberDetail {
+	profile: {
+		username: string;
+		fullName: string;
+		memberId: string;
+		email: string;
+		whatsapp: string | null;
+		homeOutlet: string;
+		createdAt: string;
+		birthday: string | null;
+		lastSignIn: string | null;
+		emailConfirmed: boolean;
+		isAdmin: boolean;
+		profileComplete: boolean;
+		socials: { platform: string; handle: string }[];
+	};
+	standing: {
+		xp: number;
+		level: number;
+		levelName: string;
+		nextLevelName: string | null;
+		nextLevelXp: number | null;
+		beans: number;
+		stamps: number;
+		lifetimeBeans: number;
+		cardsCompleted: number;
+		stampsOnCard: number;
+		stampsPerCard: number;
+	};
+	stats: {
+		visits: number;
+		total: number;
+		avgTicket: number;
+		maxTicket: number;
+		firstVisit: string | null;
+		lastVisit: string | null;
+		daysSinceLast: number | null;
+		avgGapDays: number | null;
+		rank: number;
+		spenders: number;
+	};
+	radar: { member: CrmRadarMetrics; avg: CrmRadarMetrics; max: CrmRadarMetrics };
+	byOutlet: { code: string; name: string; visits: number; revenue: number; lastVisit: string | null }[];
+	monthly: { m: string; revenue: number; visits: number }[];
+	heatmap: { d: number; h: number; n: number }[];
+	vouchers: { reward: string; source: 'stamp' | 'beans'; detail: number; status: 'available' | 'active' | 'used' | 'expired'; createdAt: string; expiresAt: string; usedAt: string | null; usedOutlet: string | null }[];
+	recent: { id: string; amount: number; outlet: string; createdAt: string }[];
+}
+
 export interface LoyaltyService {
 	/** Signed-in member's XP (beans earned + visits + completed cards). */
 	xp(): Promise<number>;
@@ -129,4 +256,12 @@ export interface LoyaltyService {
 	recordTransaction(member: string, amountRp: number, outletCode: string): Promise<{ stamps: number; beans: number; rewardUnlocked: string | null }>;
 	/** Admin: latest transactions across all members. */
 	recentTransactions(limit?: number): Promise<AdminTx[]>;
+	/** Admin: CRM overview for the last `days` days (1-365). */
+	crmDashboard(days: number): Promise<CrmDashboard>;
+	/** Admin: behaviour patterns for the CRM Insights page. */
+	crmInsights(days: number): Promise<CrmInsights>;
+	/** Admin: members with their totals, searchable by name, username, email or member ID. */
+	crmMembers(query: string, limit?: number): Promise<CrmMemberRow[]>;
+	/** Admin: everything about one member. */
+	crmMember(username: string): Promise<CrmMemberDetail>;
 }

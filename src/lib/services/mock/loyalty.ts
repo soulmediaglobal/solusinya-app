@@ -1,3 +1,4 @@
+import { mockInsights, mockMember, mockMembers } from './crm';
 import type { Activity, LedgerEntry, Level, Sticker, LoyaltyService, Milestone, Promotion, Reward, Voucher } from '../loyalty';
 
 /** Without Supabase (no .env) the app shows sample data so screens can be built and checked offline. Admin tools are disabled. */
@@ -144,5 +145,68 @@ export const mockLoyalty: LoyaltyService = {
 	},
 	async recentTransactions() {
 		return [];
+	},
+	async crmDashboard(days) {
+		// Sample numbers so the CRM screen can be built and checked offline.
+		let seed = 7;
+		const rnd = () => ((seed = (seed * 16807) % 2147483647) / 2147483647);
+		const dates = Array.from({ length: days }, (_, i) => new Date(Date.now() - (days - 1 - i) * day).toISOString().slice(0, 10));
+		const daily = dates.map((d) => {
+			const visits = Math.round(8 + rnd() * 22);
+			return { d, visits, revenue: visits * (45000 + Math.round(rnd() * 50000)) };
+		});
+		const signups = dates.map((d) => ({ d, n: Math.round(rnd() * 6) }));
+		const revenue = daily.reduce((a, x) => a + x.revenue, 0);
+		const visits = daily.reduce((a, x) => a + x.visits, 0);
+		const share = [0.46, 0.27, 0.19, 0.08];
+		const names = ['Dramaga', 'Jatinangor', 'Pamulang', 'Bali'];
+		const codes = ['DRA', 'JAT', 'PAM', 'REN'];
+		const people = [
+			['arthur.n', 'Arthur Nandra'], ['raynocturne', 'Ray Nocturne'], ['tomy.sm', 'Tomy Soul Mitra'], ['dinda.k', 'Dinda Kusuma'],
+			['bima.r', 'Bima Ramadhan'], ['sari.w', 'Sari Wulandari'], ['fajar.h', 'Fajar Hidayat'], ['maya.p', 'Maya Putri'],
+			['rizky.a', 'Rizky Aditya'], ['nadia.f', 'Nadia Fitri']
+		];
+		return {
+			days,
+			generatedAt: new Date().toISOString(),
+			members: {
+				total: 318, newInPeriod: signups.reduce((a, x) => a + x.n, 0), activeInPeriod: 121, dormant30d: 64, neverVisited: 37, unverified: 12, signups
+			},
+			sales: {
+				revenue, visits, avgTicket: Math.round(revenue / visits), prevRevenue: Math.round(revenue * 0.88), prevVisits: Math.round(visits * 0.93),
+				byOutlet: codes.map((code, i) => ({ code, name: names[i], revenue: Math.round(revenue * share[i]), visits: Math.round(visits * share[i]), members: Math.round(121 * share[i] * 1.2) })),
+				daily
+			},
+			segments: {
+				levels: [
+					{ level: 1, name: 'Green Bean', members: 201 }, { level: 2, name: 'Light Roast', members: 71 },
+					{ level: 3, name: 'Medium Roast', members: 29 }, { level: 4, name: 'Dark Roast', members: 13 }, { level: 5, name: 'Solu Legend', members: 4 }
+				],
+				topSpenders: people.map(([username, fullName], i) => ({
+					username, fullName, outletCode: codes[i % 4], total: 13_080_000 - i * 1_150_000, visits: 70 - i * 6, lastVisit: new Date(Date.now() - (i + 1) * day).toISOString()
+				})),
+				atRisk: people.slice(0, 6).map(([username, fullName], i) => ({
+					username, fullName, whatsapp: '62812000000' + (10 + i), total: 2_400_000 - i * 280_000, visits: 24 - i * 3,
+					lastVisit: new Date(Date.now() - (34 + i * 9) * day).toISOString(), daysSince: 34 + i * 9
+				})),
+				birthdays: people.slice(2, 6).map(([username, fullName], i) => ({ username, fullName, whatsapp: '62812000000' + (20 + i), day: 3 + i * 7 }))
+			},
+			rewards: {
+				available: 46, active: 3, used: 188, expired: 41, issuedInPeriod: 74, usedInPeriod: 58, bySource: { stamp: 142, beans: 136 },
+				byReward: [
+					{ name: 'Free drink', issued: 110, used: 92, expired: 11 }, { name: 'Free size upgrade', issued: 86, used: 63, expired: 14 },
+					{ name: 'Free cookie', issued: 64, used: 28, expired: 12 }, { name: 'Coffee beans 200g', issued: 18, used: 5, expired: 4 }
+				]
+			}
+		};
+	},
+	async crmInsights(days) {
+		return mockInsights(days);
+	},
+	async crmMembers(query, limit) {
+		return mockMembers(query, limit);
+	},
+	async crmMember(username) {
+		return mockMember(username);
 	}
 };
