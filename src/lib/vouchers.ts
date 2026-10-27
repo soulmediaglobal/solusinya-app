@@ -15,8 +15,8 @@ export const isUsable = (v: Voucher, now = Date.now()) => {
 	return s === 'available' || s === 'active';
 };
 export const sourceLabel = (v: Voucher) =>
-	v.source === 'stamp' ? `FROM STAMP ${v.sourceDetail}` : `REDEEMED WITH ${v.sourceDetail} BEANS`;
+	v.source === 'gift' ? 'A GIFT FROM SOLU' : v.source === 'stamp' ? `FROM STAMP ${v.sourceDetail}` : `REDEEMED WITH ${v.sourceDetail} BEANS`;
 export const sourceNote = (v: Voucher) =>
-	v.source === 'stamp' ? `Unlocked with ${v.sourceDetail} stamps` : v.rewardDescription;
+	v.source === 'gift' ? 'A little something from the Solu team' : v.source === 'stamp' ? `Unlocked with ${v.sourceDetail} stamps` : v.rewardDescription;
 export const expiryLabel = (iso: string) =>
 	'Expires ' + new Date(iso).toLocaleDateString('en-GB', { day: 'numeric', month: 'short' });

@@ -14,6 +14,8 @@ export interface Profile {
 	birthday: string | null;
 	/** small JPEG as a data URL */
 	avatar: string | null;
+	/** allows promo messages on WhatsApp */
+	marketingOptIn: boolean;
 }
 
 export const SOCIALS = [
@@ -29,6 +31,15 @@ export interface Social {
 	handle: string;
 }
 
+export const SIGNUP_SOURCES = [
+	{ key: 'instagram', label: 'Instagram' },
+	{ key: 'tiktok', label: 'TikTok' },
+	{ key: 'friend', label: 'A friend' },
+	{ key: 'store_qr', label: 'QR code at the store' },
+	{ key: 'other', label: 'Somewhere else' }
+] as const;
+export type SignupSource = (typeof SIGNUP_SOURCES)[number]['key'];
+
 export interface SignUpInput {
 	username: string;
 	fullName: string;
@@ -36,6 +47,8 @@ export interface SignUpInput {
 	outletCode: OutletCode;
 	whatsapp: string;
 	password: string;
+	/** where the member heard about Solu Club (optional) */
+	source?: SignupSource | '';
 }
 
 export type OtpPurpose = 'signup' | 'reset' | 'email';

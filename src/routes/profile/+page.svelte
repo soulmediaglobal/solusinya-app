@@ -65,6 +65,20 @@
 			busy = false;
 		}
 	}
+	let promoBusy = $state(false);
+	let promoErr = $state('');
+	async function togglePromo() {
+		if (!user || promoBusy) return;
+		promoBusy = true;
+		promoErr = '';
+		try {
+			session.set(await auth.setMarketingOptIn(!user.marketingOptIn));
+		} catch {
+			promoErr = 'Could not save that choice. Please try again.';
+		} finally {
+			promoBusy = false;
+		}
+	}
 	async function signOut() {
 		await session.signOut();
 		await goto('/', { replaceState: true });
@@ -129,6 +143,12 @@
 					</a>
 				{/each}
 			</nav>
+
+			<button class="promo" role="switch" aria-checked={user?.marketingOptIn ?? false} disabled={promoBusy} onclick={togglePromo}>
+				<span class="pt"><b>Promos on WhatsApp</b><small>Occasional offers and birthday treats. Turn off any time.</small></span>
+				<span class="sw" class:on={user?.marketingOptIn}><i></i></span>
+			</button>
+			{#if promoErr}<div class="err" role="alert">{promoErr}</div>{/if}
 
 			<button class="out" onclick={signOut}>Sign out</button>
 			<a class="del" href="/profile/delete">Delete account</a>
@@ -293,6 +313,59 @@
 	}
 	.menu {
 		margin-top: 22px;
+	}
+	.promo {
+		display: flex;
+		align-items: center;
+		gap: 14px;
+		width: 100%;
+		margin-top: 14px;
+		padding: 12px 0;
+		background: none;
+		border: 0;
+		border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+		color: #fff;
+		text-align: left;
+		cursor: pointer;
+	}
+	.pt {
+		flex: 1;
+		display: grid;
+		gap: 2px;
+	}
+	.pt b {
+		font-size: 14px;
+		font-weight: 600;
+	}
+	.pt small {
+		font-size: 11px;
+		line-height: 15px;
+		color: rgba(255, 255, 255, 0.6);
+	}
+	.sw {
+		flex: none;
+		position: relative;
+		width: 44px;
+		height: 26px;
+		border-radius: 999px;
+		background: rgba(255, 255, 255, 0.18);
+		transition: background 0.2s;
+	}
+	.sw i {
+		position: absolute;
+		top: 3px;
+		left: 3px;
+		width: 20px;
+		height: 20px;
+		border-radius: 50%;
+		background: #fff;
+		transition: transform 0.2s;
+	}
+	.sw.on {
+		background: var(--copper);
+	}
+	.sw.on i {
+		transform: translateX(18px);
 	}
 	.menu a {
 		display: flex;

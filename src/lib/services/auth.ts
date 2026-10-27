@@ -24,6 +24,8 @@ export interface AuthService {
 	updateProfile(input: { fullName: string; username: string; whatsapp: string }): Promise<Profile>;
 	/** Sets the birthday once (ISO date). It cannot be changed afterwards. */
 	setBirthday(iso: string): Promise<Profile>;
+	/** Turns promo messages on WhatsApp on or off. */
+	setMarketingOptIn(value: boolean): Promise<Profile>;
 	/** Stores a small JPEG data URL, or removes the photo with null. */
 	setAvatar(dataUrl: string | null): Promise<Profile>;
 	/** Throws AppError('wrong_password') or AppError('weak_password'). */

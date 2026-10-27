@@ -2,7 +2,8 @@
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { loyalty } from '#lib/services';
-	import type { CrmMemberDetail } from '#lib/services/loyalty';
+	import type { CrmMemberDetail, CrmMemberExtra, Reward } from '#lib/services/loyalty';
+	import Columns from '#lib/components/crm/Columns.svelte';
 	import { OUTLETS } from '#lib/config';
 	import { session } from '#lib/stores/session.svelte';
 	import CrmTabs from '#lib/components/crm/CrmTabs.svelte';
@@ -20,6 +21,8 @@
 
 	const username = $derived(page.url.searchParams.get('u') ?? '');
 	let d = $state<CrmMemberDetail | null>(null);
+	let x = $state<CrmMemberExtra | null>(null);
+	let rewardList = $state<Reward[]>([]);
 	let loading = $state(false);
 	let error = $state('');
 
@@ -28,6 +31,8 @@
 		if (!session.user?.isAdmin || !u) return;
 		loading = true;
 		error = '';
+		loyalty.crmMemberExtra(u).then((res) => (x = res)).catch(() => (x = null));
+		loyalty.rewards().then((r) => (rewardList = r)).catch(() => (rewardList = []));
 		loyalty
 			.crmMember(u)
 			.then((res) => (d = res))
@@ -80,6 +85,85 @@
 		return Math.min(100, Math.round((d.standing.xp / d.standing.nextLevelXp) * 100));
 	});
 	const statusCls = (s: string) => (s === 'used' ? 'mute' : s === 'expired' ? 'bad' : 'ok');
+
+	const SOURCE_LABEL: Record<string, string> = { instagram: 'Instagram', tiktok: 'TikTok', friend: 'a friend', store_qr: 'the store QR', other: 'somewhere else' };
+	const KIND: Record<string, string> = { visit: '#bd784e', voucher: '#7fb98a', redeem: '#8fb4d9', note: '#f2e8da', followup: '#e0b050', signup: '#d59b75' };
+	const when = (iso: string) => new Date(iso).toLocaleDateString('en-GB', { day: '2-digit', month: 'short', year: '2-digit' });
+	const todayIso = new Date().toISOString().slice(0, 10);
+
+	// ---- notes, follow-ups and tags
+	let noteText = $state('');
+	let noteDue = $state('');
+	let tagText = $state('');
+	let actErr = $state('');
+	let actOk = $state('');
+	let busy = $state(false);
+	async function reloadExtra() {
+		if (username) x = await loyalty.crmMemberExtra(username);
+	}
+	async function guarded(fn: () => Promise<void>, ok = '') {
+		actErr = '';
+		actOk = '';
+		busy = true;
+		try {
+			await fn();
+			actOk = ok;
+		} catch (e) {
+			actErr = e instanceof Error ? e.message : 'Something went wrong.';
+		} finally {
+			busy = false;
+		}
+	}
+	const addNote = () =>
+		guarded(async () => {
+			if (!noteText.trim()) throw new Error('Write the note first.');
+			await loyalty.crmAddNote(username, noteText.trim(), noteDue || null);
+			noteText = '';
+			noteDue = '';
+			await reloadExtra();
+		});
+	const toggleNote = (id: string, done: boolean) => guarded(async () => { await loyalty.crmSetNoteDone(id, done); await reloadExtra(); });
+	const removeNote = (id: string) => guarded(async () => { await loyalty.crmDeleteNote(id); await reloadExtra(); });
+	const addTag = () =>
+		guarded(async () => {
+			const t = tagText.trim().toLowerCase();
+			if (!t) return;
+			if (!/^[a-z0-9][a-z0-9 _-]{0,23}$/.test(t)) throw new Error('Tags use letters, numbers, spaces, - or _ (max 24).');
+			await loyalty.crmSetTags(username, [...new Set([...(x?.tags ?? []), t])]);
+			tagText = '';
+			await reloadExtra();
+		});
+	const dropTag = (t: string) => guarded(async () => { await loyalty.crmSetTags(username, (x?.tags ?? []).filter((y) => y !== t)); await reloadExtra(); });
+
+	// ---- admin actions (each one needs a reason and lands in the audit log)
+	let beansAmt = $state('');
+	let beansWhy = $state('');
+	let giftReward = $state('');
+	let giftWhy = $state('');
+	const grantBeans = () =>
+		guarded(async () => {
+			const n = Number(beansAmt.replace(/[^\d-]/g, ''));
+			if (!n) throw new Error('Enter how many beans (use a minus to take some back).');
+			if (beansWhy.trim().length < 3) throw new Error('Write a short reason.');
+			if (!confirm(`${n > 0 ? 'Give' : 'Take back'} ${Math.abs(n)} beans ${n > 0 ? 'to' : 'from'} @${username}?`)) return;
+			const bal = await loyalty.crmGrantBeans(username, n, beansWhy.trim());
+			beansAmt = '';
+			beansWhy = '';
+			d = await loyalty.crmMember(username);
+			actOk = `Done. They now have ${bal} beans.`;
+		});
+	const grantVoucher = () =>
+		guarded(async () => {
+			if (!giftReward) throw new Error('Choose a reward.');
+			if (giftWhy.trim().length < 3) throw new Error('Write a short reason.');
+			const name = rewardList.find((r) => r.id === giftReward)?.name ?? 'this reward';
+			if (!confirm(`Gift "${name}" to @${username}?`)) return;
+			await loyalty.crmGrantVoucher(username, giftReward, giftWhy.trim());
+			giftReward = '';
+			giftWhy = '';
+			d = await loyalty.crmMember(username);
+			actOk = 'Voucher added to their rewards.';
+		});
 </script>
 
 {#if session.user?.isAdmin}
@@ -106,6 +190,11 @@
 							<span class="crm-chip" class:ok={p.emailConfirmed} class:bad={!p.emailConfirmed}>{p.emailConfirmed ? 'Email confirmed' : 'Email not confirmed'}</span>
 							<span class="crm-chip" class:ok={p.profileComplete} class:mute={!p.profileComplete}>{p.profileComplete ? 'Profile complete' : 'Profile incomplete'}</span>
 							{#if p.isAdmin}<span class="crm-chip">Admin</span>{/if}
+							{#if x}
+								<span class="crm-chip" class:ok={x.optIn} class:mute={!x.optIn}>{x.optIn ? 'Agreed to promos' : 'No promo opt-in'}</span>
+								{#if x.signupSource}<span class="crm-chip mute">Found us via {SOURCE_LABEL[x.signupSource] ?? x.signupSource}</span>{/if}
+								{#each x.tags as t (t)}<span class="crm-chip">{t}</span>{/each}
+							{/if}
 							{#each p.socials as s (s.platform)}<span class="crm-chip mute">{s.platform} · {s.handle}</span>{/each}
 						</div>
 					</div>
@@ -204,7 +293,7 @@
 										{#each d.vouchers as v, i (i)}
 											<tr>
 												<td><b>{v.reward}</b></td>
-												<td>{v.source === 'stamp' ? `Stamp ${v.detail}` : `${v.detail} beans`}</td>
+												<td>{v.source === 'gift' ? 'Gift' : v.source === 'stamp' ? `Stamp ${v.detail}` : `${v.detail} beans`}</td>
 												<td><span class="crm-chip {statusCls(v.status)}">{v.status === 'used' ? `Used · ${outletName(v.usedOutlet)}` : v.status}</span></td>
 												<td class="r">{fdate(v.usedAt ?? v.createdAt)}</td>
 											</tr>
@@ -232,10 +321,126 @@
 					</article>
 				</section>
 
-				<section class="crm-card nodata">
-					<h2>Favorite menu</h2>
-					<p class="cap">Not tracked yet. Purchases only record the amount and outlet, not what was ordered, so this card cannot show a favorite item. It needs item-level data from the cashier or the POS.</p>
-				</section>
+				{#if x}
+					<section class="crm-kpis four" aria-label="Predictions">
+						<div class="crm-kpi"><span class="k">Spend percentile</span><b>Top {Math.max(1, 100 - x.percentile.spend)}%</b><span class="note">of {x.percentile.members} buyers</span></div>
+						<div class="crm-kpi"><span class="k">Visit percentile</span><b>Top {Math.max(1, 100 - x.percentile.visits)}%</b><span class="note">by number of visits</span></div>
+						<div class="crm-kpi"><span class="k">Next visit (est.)</span><b>{x.predictedNextVisit ? new Date(x.predictedNextVisit + 'T00:00:00').toLocaleDateString('en-GB', { day: 'numeric', month: 'short' }) : '—'}</b><span class="note">{x.predictedNextVisit ? (x.predictedNextVisit < todayIso ? 'overdue against their usual rhythm' : 'from their usual rhythm') : 'needs 3 or more visits'}</span></div>
+						<div class="crm-kpi"><span class="k">12-month value</span><b>{x.clv12 ? short(x.clv12) : '—'}</b><span class="note">if they keep the current pace</span></div>
+					</section>
+
+					<section class="crm-grid2">
+						<article class="crm-card">
+							<h2>Ticket size <small>last {x.ticketTrend.length} purchases</small></h2>
+							{#if x.ticketTrend.length > 1}
+								<LineChart points={x.ticketTrend.map((t) => ({ label: when(t.d), v: t.amount }))} format={short} height={190} />
+							{:else}
+								<p class="crm-empty">Needs at least two purchases.</p>
+							{/if}
+						</article>
+						<article class="crm-card">
+							<h2>Favorite menu</h2>
+							{#if x.favoriteMenu.length}
+								<Columns items={x.favoriteMenu.map((m) => ({ label: m.name, n: m.qty }))} height={130} />
+								<p class="cap">Based only on purchases where the cashier ticked items.</p>
+							{:else}
+								<p class="crm-empty">No items recorded for this member yet. They appear once the cashier ticks what was ordered.</p>
+							{/if}
+						</article>
+					</section>
+
+					<section class="crm-grid2">
+						<article class="crm-card">
+							<h2>Timeline</h2>
+							<ul class="tl">
+								{#each x.timeline as e, i (i)}
+									<li><i style:background={KIND[e.kind]}></i><div><b>{e.text}</b><span>{when(e.at)}</span></div></li>
+								{/each}
+							</ul>
+						</article>
+						<article class="crm-card">
+							<h2>Members like this one</h2>
+							{#if x.lookalikes.length === 0}
+								<p class="crm-empty">Nobody to compare with yet.</p>
+							{:else}
+								<ul class="tl">
+									{#each x.lookalikes as l (l.username)}
+										<li><i></i><div><a href="/admin/crm/member?u={encodeURIComponent(l.username)}"><b>{l.fullName}</b></a><span>@{l.username} · {short(l.total)} · {l.visits} visits</span></div></li>
+									{/each}
+								</ul>
+								<p class="cap">Closest in total spend and number of visits. Useful for "people like her also liked…" ideas.</p>
+							{/if}
+						</article>
+					</section>
+
+					<section class="crm-grid2">
+						<article class="crm-card">
+							<h2>Notes and follow-ups</h2>
+							<div class="form">
+								<textarea rows="2" placeholder="e.g. Prefers oat milk. Ask about the catering order." bind:value={noteText}></textarea>
+								<div class="inline">
+									<label>Follow up on <input type="date" min={todayIso} bind:value={noteDue} /></label>
+									<button type="button" class="act" disabled={busy} onclick={addNote}>Add</button>
+								</div>
+							</div>
+							{#if x.notes.length === 0}
+								<p class="crm-empty">No notes yet.</p>
+							{:else}
+								<ul class="notes">
+									{#each x.notes as n (n.id)}
+										<li class:done={n.done}>
+											<div>
+												<p>{n.body}</p>
+												<span>{when(n.createdAt)}{n.author ? ' · @' + n.author : ''}{n.dueOn ? ' · follow up ' + when(n.dueOn) : ''}</span>
+											</div>
+											<div class="nb">
+												{#if n.dueOn}<button type="button" onclick={() => toggleNote(n.id, !n.done)}>{n.done ? 'Reopen' : 'Done'}</button>{/if}
+												<button type="button" onclick={() => removeNote(n.id)}>Delete</button>
+											</div>
+										</li>
+									{/each}
+								</ul>
+							{/if}
+						</article>
+
+						<article class="crm-card">
+							<h2>Tags</h2>
+							<div class="tags">
+								{#each x.tags as t (t)}<span class="crm-chip">{t} <button type="button" class="x" aria-label="Remove {t}" onclick={() => dropTag(t)}>×</button></span>{/each}
+								{#if x.tags.length === 0}<span class="crm-empty">No tags.</span>{/if}
+							</div>
+							<div class="inline">
+								<input class="txt" placeholder="vip, mahasiswa, catering…" bind:value={tagText} onkeydown={(e) => e.key === 'Enter' && addTag()} />
+								<button type="button" class="act" disabled={busy} onclick={addTag}>Add tag</button>
+							</div>
+
+							<h2 class="sp">Give something</h2>
+							<div class="form">
+								<div class="inline">
+									<input class="txt" inputmode="numeric" placeholder="Beans (e.g. 50 or -50)" bind:value={beansAmt} />
+									<input class="txt wide" placeholder="Reason" bind:value={beansWhy} />
+									<button type="button" class="act" disabled={busy} onclick={grantBeans}>Adjust beans</button>
+								</div>
+								<div class="inline">
+									<select class="txt" bind:value={giftReward}>
+										<option value="">Gift a reward…</option>
+										{#each rewardList as r (r.id)}<option value={r.id}>{r.name}</option>{/each}
+									</select>
+									<input class="txt wide" placeholder="Reason" bind:value={giftWhy} />
+									<button type="button" class="act" disabled={busy} onclick={grantVoucher}>Gift</button>
+								</div>
+								<p class="cap">Both are written to the Audit log with your name and the reason.</p>
+							</div>
+							{#if actErr}<div class="crm-alert" role="alert">{actErr}</div>{/if}
+							{#if actOk}<p class="okmsg" role="status">{actOk}</p>{/if}
+						</article>
+					</section>
+				{:else}
+					<section class="crm-card nodata">
+						<h2>More about this member</h2>
+						<p class="cap">The extra details (notes, tags, predictions, favorite menu) need the newest database update. Run supabase/009 and 010 in the SQL editor.</p>
+					</section>
+				{/if}
 			</div>
 		{:else if loading}
 			<p class="crm-loading">Loading the member…</p>
@@ -433,6 +638,129 @@
 		.orow .track {
 			grid-column: 1 / -1;
 			grid-row: 2;
+		}
+	}
+	.crm-kpis.four {
+		grid-template-columns: repeat(4, 1fr);
+	}
+	.form {
+		display: grid;
+		gap: 8px;
+		margin-bottom: 12px;
+	}
+	.form textarea,
+	.txt {
+		padding: 8px 12px;
+		border-radius: 10px;
+		border: 1px solid var(--line);
+		background: rgba(255, 255, 255, 0.06);
+		color: #fff;
+		font-size: 12px;
+		font-family: inherit;
+		color-scheme: dark;
+	}
+	.txt {
+		height: 36px;
+		min-width: 120px;
+	}
+	.txt.wide {
+		flex: 1;
+	}
+	.inline {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 8px;
+		margin-bottom: 8px;
+	}
+	.inline label {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		font-size: 11px;
+		color: var(--text-3);
+	}
+	.inline input[type='date'] {
+		height: 34px;
+		padding: 0 8px;
+		border-radius: 10px;
+		border: 1px solid var(--line);
+		background: rgba(255, 255, 255, 0.06);
+		color: #fff;
+		color-scheme: dark;
+	}
+	.act {
+		height: 36px;
+		padding: 0 16px;
+		border: 0;
+		border-radius: 999px;
+		background: var(--grad-primary);
+		color: #fff;
+		font-size: 12px;
+		font-weight: 800;
+		cursor: pointer;
+	}
+	.act:disabled {
+		opacity: 0.5;
+	}
+	.notes {
+		display: grid;
+		gap: 10px;
+		margin: 0;
+		padding: 0;
+		list-style: none;
+	}
+	.notes li {
+		display: flex;
+		justify-content: space-between;
+		gap: 12px;
+		padding: 10px 12px;
+		border-radius: 12px;
+		background: rgba(255, 255, 255, 0.05);
+	}
+	.notes li.done p {
+		text-decoration: line-through;
+		color: var(--text-3);
+	}
+	.notes p {
+		margin: 0 0 4px;
+		font-size: 12px;
+		line-height: 18px;
+	}
+	.notes span {
+		font-size: 10px;
+		color: var(--text-3);
+	}
+	.nb {
+		display: flex;
+		flex-direction: column;
+		gap: 4px;
+	}
+	.nb button,
+	.x {
+		background: none;
+		border: 0;
+		color: var(--copper-light);
+		font-size: 11px;
+		font-weight: 700;
+		cursor: pointer;
+	}
+	.x {
+		font-size: 13px;
+		padding: 0 0 0 4px;
+	}
+	.sp {
+		margin-top: 22px !important;
+	}
+	.okmsg {
+		margin: 8px 0 0;
+		font-size: 12px;
+		font-weight: 600;
+		color: var(--success);
+	}
+	@media (max-width: 960px) {
+		.crm-kpis.four {
+			grid-template-columns: repeat(2, 1fr);
 		}
 	}
 </style>

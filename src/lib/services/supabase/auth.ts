@@ -61,7 +61,8 @@ function toProfile(data: Record<string, unknown>, email: string): Profile {
 		createdAt: data.created_at as string,
 		isAdmin: Boolean(data.is_admin),
 		birthday: (data.birthday as string | null) ?? null,
-		avatar: (data.avatar as string | null) ?? null
+		avatar: (data.avatar as string | null) ?? null,
+		marketingOptIn: Boolean(data.marketing_opt_in)
 	};
 }
 
@@ -97,7 +98,8 @@ export const supabaseAuth: AuthService = {
 					username: input.username.trim().toLowerCase(),
 					full_name: input.fullName.trim(),
 					outlet_code: input.outletCode,
-					whatsapp: input.whatsapp.trim()
+					whatsapp: input.whatsapp.trim(),
+					source: input.source ?? ''
 				}
 			}
 		});
@@ -194,6 +196,15 @@ export const supabaseAuth: AuthService = {
 		const u = sess.session?.user;
 		if (!u) throw new AppError('not_signed_in', 'Not signed in');
 		const { error } = await supabase.rpc('set_birthday', { p_date: iso });
+		if (error) throw error;
+		return (await loadProfile(u.id, u.email ?? '')) as Profile;
+	},
+
+	async setMarketingOptIn(value) {
+		const { data: sess } = await supabase.auth.getSession();
+		const u = sess.session?.user;
+		if (!u) throw new AppError('not_signed_in', 'Not signed in');
+		const { error } = await supabase.rpc('set_marketing_opt_in', { p_value: value });
 		if (error) throw error;
 		return (await loadProfile(u.id, u.email ?? '')) as Profile;
 	},

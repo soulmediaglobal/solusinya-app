@@ -1,4 +1,4 @@
-import { mockInsights, mockMember, mockMembers } from './crm';
+import { mockActions, mockInsights, mockMember, mockMemberExtra, mockMembers, mockOverview, mockSegments } from './crm';
 import type { Activity, LedgerEntry, Level, Sticker, LoyaltyService, Milestone, Promotion, Reward, Voucher } from '../loyalty';
 
 /** Without Supabase (no .env) the app shows sample data so screens can be built and checked offline. Admin tools are disabled. */
@@ -208,5 +208,54 @@ export const mockLoyalty: LoyaltyService = {
 	},
 	async crmMember(username) {
 		return mockMember(username);
+	},
+	async menuItems() {
+		return mockActions.menu();
+	},
+	async saveMenuItem(item) {
+		mockActions.saveMenu(item);
+	},
+	async crmOverview(from, to, outlet) {
+		return mockOverview(from, to, outlet);
+	},
+	async crmSegments(outlet) {
+		return mockSegments(outlet);
+	},
+	async crmMemberExtra(username) {
+		return mockMemberExtra(username);
+	},
+	async crmAddNote(username, body, dueOn) {
+		mockActions.addNote(username, body, dueOn);
+	},
+	async crmSetNoteDone(id, done) {
+		mockActions.noteDone(id, done);
+	},
+	async crmDeleteNote(id) {
+		mockActions.deleteNote(id);
+	},
+	async crmSetTags(username, tags) {
+		mockActions.setTags(username, tags);
+	},
+	async crmGrantBeans(username, beans, reason) {
+		return mockActions.grantBeans(username, beans, reason);
+	},
+	async crmGrantVoucher(username, rewardId, reason) {
+		mockActions.grantVoucher(username, rewardId, reason);
+	},
+	async crmSetRewardCost() {},
+	async crmCreateCampaign(name, message, segment, usernames) {
+		return mockActions.createCampaign(name, message, segment, usernames);
+	},
+	async crmMarkSent(id, username) {
+		mockActions.markSent(id, username);
+	},
+	async crmCampaigns() {
+		return mockActions.campaigns();
+	},
+	async crmCampaign(id) {
+		return mockActions.campaign(id);
+	},
+	async crmAudit() {
+		return mockActions.audit();
 	}
 };

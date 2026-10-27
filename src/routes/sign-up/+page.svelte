@@ -6,7 +6,7 @@
 	import Button from '#lib/components/Button.svelte';
 	import { OUTLETS, type OutletCode } from '#lib/config';
 	import { auth } from '#lib/services';
-	import { AppError } from '#lib/types';
+	import { AppError, SIGNUP_SOURCES, type SignupSource } from '#lib/types';
 	import { emailError, passwordError, usernameError } from '#lib/validation';
 
 	let username = $state('');
@@ -14,6 +14,7 @@
 	let email = $state('');
 	let outlet = $state<OutletCode | ''>('');
 	let whatsapp = $state('');
+	let source = $state<SignupSource | ''>('');
 	let password = $state('');
 	let confirm = $state('');
 	let agree = $state(false);
@@ -82,7 +83,8 @@
 				email,
 				outletCode: outlet as OutletCode,
 				whatsapp,
-				password
+				password,
+				source
 			});
 			await goto(`/verify?purpose=signup&to=${encodeURIComponent(maskedEmail)}`);
 		} catch (err) {
@@ -115,6 +117,16 @@
 			{#if errors.outlet}<div class="msg">{errors.outlet}</div>{/if}
 		</div>
 		<Field label="WhatsApp · optional" bind:value={whatsapp} type="tel" placeholder="0812 3456 7890" autocomplete="tel" />
+		<label class="select">
+			<span class="lab">How did you hear about us? · optional</span>
+			<select bind:value={source} aria-label="How did you hear about us">
+				<option value="">Skip</option>
+				{#each SIGNUP_SOURCES as s (s.key)}
+					<option value={s.key}>{s.label}</option>
+				{/each}
+			</select>
+			<span class="caret" aria-hidden="true">▾</span>
+		</label>
 		<Field label="Password" bind:value={password} eye placeholder="At least 8 characters" autocomplete="new-password" error={errors.password} />
 		<Field label="Confirm password" bind:value={confirm} eye placeholder="Re-enter your password" autocomplete="new-password" error={errors.confirm} />
 		<label class="agree">

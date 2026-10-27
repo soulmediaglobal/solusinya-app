@@ -6,7 +6,7 @@
 	import Button from '#lib/components/Button.svelte';
 	import { OUTLETS, type OutletCode } from '#lib/config';
 	import { loyalty } from '#lib/services';
-	import type { AdminTx, MemberLookup } from '#lib/services/loyalty';
+	import type { AdminTx, MemberLookup, MenuItem } from '#lib/services/loyalty';
 	import { session } from '#lib/stores/session.svelte';
 
 	// Admin only. Everyone else goes back to Home (the database enforces this too).
@@ -24,6 +24,13 @@
 	let error = $state('');
 	let done = $state('');
 	let recent = $state<AdminTx[]>([]);
+	let menu = $state<MenuItem[]>([]);
+	let picked = $state<Record<string, number>>({});
+	const items = $derived(Object.entries(picked).filter(([, q]) => q > 0).map(([id, qty]) => ({ id, qty })));
+	const bump = (id: string, by: number) => (picked[id] = Math.max(0, Math.min(99, (picked[id] ?? 0) + by)));
+	$effect(() => {
+		if (session.user?.isAdmin) loyalty.menuItems().then((m) => (menu = m.filter((x) => x.active))).catch(() => (menu = []));
+	});
 
 	const rp = (n: number) => 'Rp ' + n.toLocaleString('id-ID');
 	const amountNum = $derived(Number(amount.replace(/\D/g, '')) || 0);
@@ -65,10 +72,11 @@
 		if (amountNum <= 0) return (error = 'Enter the transaction amount.');
 		busy = true;
 		try {
-			const res = await loyalty.recordTransaction(found.memberId, amountNum, outlet);
+			const res = await loyalty.recordTransaction(found.memberId, amountNum, outlet, items);
 			done = `Recorded ${rp(amountNum)} for @${found.username}: +${res.stamps} stamp, +${res.beans} beans.` + (res.rewardUnlocked ? ` Reward unlocked: ${res.rewardUnlocked}.` : '');
 			query = '';
 			amount = '';
+			picked = {};
 			await refresh();
 		} catch (err) {
 			error = err instanceof Error ? err.message : 'Something went wrong.';
@@ -104,6 +112,19 @@
 				</select>
 				<span class="caret" aria-hidden="true">▾</span>
 			</label>
+			{#if menu.length}
+				<div class="items">
+					<span class="lab">What did they have? · optional</span>
+					<div class="chips">
+						{#each menu as m (m.id)}
+							<span class="chip" class:on={(picked[m.id] ?? 0) > 0}>
+								<button type="button" class="nm" onclick={() => bump(m.id, 1)}>{m.name}{#if picked[m.id]}<em>× {picked[m.id]}</em>{/if}</button>
+								{#if picked[m.id]}<button type="button" class="mn" aria-label="Remove one {m.name}" onclick={() => bump(m.id, -1)}>−</button>{/if}
+							</span>
+						{/each}
+					</div>
+				</div>
+			{/if}
 			{#if error}<div class="msg bad" role="alert">{error}</div>{/if}
 			{#if done}<div class="msg ok" role="status">{done}</div>{/if}
 			<div class="gap"></div>
@@ -111,6 +132,7 @@
 		</form>
 		<a class="tool" href="/admin/reward">Validate a reward code ›</a>
 		<a class="tool" href="/admin/crm">Open the CRM dashboard ›</a>
+		<a class="tool" href="/admin/menu">Manage the menu ›</a>
 
 		<section class="recent">
 			<h2>Latest transactions</h2>
@@ -132,6 +154,50 @@
 {/if}
 
 <style>
+	.items {
+		margin-top: 4px;
+		padding: 10px 12px 12px;
+		border-radius: 14px;
+		border: 1px solid var(--line);
+		background: rgba(255, 255, 255, 0.06);
+	}
+	.chips {
+		display: flex;
+		flex-wrap: wrap;
+		gap: 6px;
+		margin-top: 8px;
+	}
+	.chip {
+		display: inline-flex;
+		align-items: center;
+		border-radius: 999px;
+		border: 1px solid var(--line);
+		background: rgba(255, 255, 255, 0.05);
+		overflow: hidden;
+	}
+	.chip.on {
+		border-color: var(--copper);
+		background: rgba(189, 120, 78, 0.22);
+	}
+	.chip button {
+		background: none;
+		border: 0;
+		color: #fff;
+		font-size: 12px;
+		font-weight: 600;
+		padding: 7px 11px;
+		cursor: pointer;
+	}
+	.chip em {
+		margin-left: 5px;
+		font-style: normal;
+		color: var(--copper-soft);
+	}
+	.chip .mn {
+		padding: 7px 10px 7px 4px;
+		color: var(--copper-soft);
+	}
+
 	.form {
 		display: flex;
 		flex-direction: column;

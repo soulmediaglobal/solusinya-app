@@ -1,4 +1,4 @@
-import type { Activity, CrmInsights, CrmMemberDetail, CrmMemberRow, AdminTx, Balance, Level, Sticker, LedgerEntry, LoyaltyService, MemberLookup, Milestone, Promotion, Reward, Voucher, VoucherPeek } from '../loyalty';
+import type { Activity, CrmAuditRow, CrmCampaignDetail, CrmCampaignSummary, CrmInsights, CrmMemberExtra, CrmOverview, CrmSegmentRow, MenuItem, CrmMemberDetail, CrmMemberRow, AdminTx, Balance, Level, Sticker, LedgerEntry, LoyaltyService, MemberLookup, Milestone, Promotion, Reward, Voucher, VoucherPeek } from '../loyalty';
 import { supabase } from './client';
 
 async function uid() {
@@ -13,7 +13,7 @@ function toVoucher(r: Record<string, unknown>): Voucher {
 		id: r.id as string,
 		rewardName: rw?.name ?? 'Reward',
 		rewardDescription: rw?.description ?? '',
-		source: r.source as 'stamp' | 'beans',
+		source: r.source as Voucher['source'],
 		sourceDetail: r.source_detail as number,
 		status: r.status as Voucher['status'],
 		expiresAt: r.expires_at as string,
@@ -176,11 +176,12 @@ export const supabaseLoyalty: LoyaltyService = {
 		} satisfies MemberLookup;
 	},
 
-	async recordTransaction(member, amountRp, outletCode) {
+	async recordTransaction(member, amountRp, outletCode, items) {
 		const { data, error } = await supabase.rpc('record_transaction', {
 			p_member: member,
 			p_amount: amountRp,
-			p_outlet: outletCode
+			p_outlet: outletCode,
+			p_items: items && items.length ? items : null
 		});
 		if (error) throw new Error(error.message);
 		return { stamps: data.stamps as number, beans: data.beans as number, rewardUnlocked: (data.reward_unlocked as string | null) ?? null };
@@ -265,5 +266,92 @@ export const supabaseLoyalty: LoyaltyService = {
 		const { data, error } = await supabase.rpc('crm_member', { p_username: username });
 		if (error) throw new Error(error.message);
 		return data as CrmMemberDetail;
+	},
+	async menuItems() {
+		const { data, error } = await supabase.from('menu_items').select('id, name, category, sort, active').order('sort').order('name');
+		if (error) throw new Error(error.message);
+		return (data ?? []) as MenuItem[];
+	},
+	async saveMenuItem(item) {
+		const { error } = await supabase.rpc('admin_save_menu_item', {
+			p_id: item.id ?? null, p_name: item.name, p_category: item.category, p_sort: item.sort, p_active: item.active
+		});
+		if (error) throw new Error(error.message.includes('menu_items_name_idx') ? 'A menu item with that name already exists.' : error.message);
+	},
+
+	async crmOverview(from, to, outlet) {
+		const { data, error } = await supabase.rpc('crm_overview', { p_from: from, p_to: to, p_outlet: outlet });
+		if (error) throw new Error(error.message);
+		return data as CrmOverview;
+	},
+	async crmSegments(outlet) {
+		const { data, error } = await supabase.rpc('crm_segments', { p_outlet: outlet });
+		if (error) throw new Error(error.message);
+		const n = (v: unknown) => Number(v ?? 0);
+		return ((data ?? []) as any[]).map((r): CrmSegmentRow => ({
+			username: r.username, fullName: r.full_name, outletCode: r.outlet_code ?? null, whatsapp: r.whatsapp ?? null,
+			optIn: !!r.opt_in, signupSource: r.signup_source ?? null, visits: n(r.visits), total: n(r.total), avgTicket: n(r.avg_ticket),
+			firstVisit: r.first_visit ?? null, lastVisit: r.last_visit ?? null, daysSince: r.days_since == null ? null : n(r.days_since),
+			avgGap: r.avg_gap == null ? null : n(r.avg_gap), tags: r.tags ?? [], openFollowups: n(r.open_followups),
+			r: n(r.r), f: n(r.f), m: n(r.m), segment: r.segment, churnRisk: n(r.churn_risk), nextVisit: r.next_visit ?? null, clv12: n(r.clv12)
+		}));
+	},
+	async crmMemberExtra(username) {
+		const { data, error } = await supabase.rpc('crm_member_extra', { p_username: username });
+		if (error) throw new Error(error.message);
+		return data as CrmMemberExtra;
+	},
+	async crmAddNote(username, body, dueOn) {
+		const { error } = await supabase.rpc('crm_add_note', { p_username: username, p_body: body, p_due: dueOn });
+		if (error) throw new Error(error.message);
+	},
+	async crmSetNoteDone(id, done) {
+		const { error } = await supabase.rpc('crm_set_note_done', { p_id: id, p_done: done });
+		if (error) throw new Error(error.message);
+	},
+	async crmDeleteNote(id) {
+		const { error } = await supabase.rpc('crm_delete_note', { p_id: id });
+		if (error) throw new Error(error.message);
+	},
+	async crmSetTags(username, tags) {
+		const { error } = await supabase.rpc('crm_set_tags', { p_username: username, p_tags: tags });
+		if (error) throw new Error(error.message);
+	},
+	async crmGrantBeans(username, beans, reason) {
+		const { data, error } = await supabase.rpc('crm_grant_beans', { p_username: username, p_beans: beans, p_reason: reason });
+		if (error) throw new Error(error.message);
+		return Number(data);
+	},
+	async crmGrantVoucher(username, rewardId, reason) {
+		const { error } = await supabase.rpc('crm_grant_voucher', { p_username: username, p_reward: rewardId, p_reason: reason });
+		if (error) throw new Error(error.message);
+	},
+	async crmSetRewardCost(rewardId, cost) {
+		const { error } = await supabase.rpc('crm_set_reward_cost', { p_reward: rewardId, p_cost: cost });
+		if (error) throw new Error(error.message);
+	},
+	async crmCreateCampaign(name, message, segment, usernames) {
+		const { data, error } = await supabase.rpc('crm_create_campaign', { p_name: name, p_message: message, p_segment: segment, p_usernames: usernames });
+		if (error) throw new Error(error.message);
+		return data as { id: string; recipients: number; skipped: number };
+	},
+	async crmMarkSent(campaignId, username) {
+		const { error } = await supabase.rpc('crm_mark_sent', { p_campaign: campaignId, p_username: username });
+		if (error) throw new Error(error.message);
+	},
+	async crmCampaigns() {
+		const { data, error } = await supabase.rpc('crm_campaigns');
+		if (error) throw new Error(error.message);
+		return data as CrmCampaignSummary[];
+	},
+	async crmCampaign(id) {
+		const { data, error } = await supabase.rpc('crm_campaign', { p_id: id });
+		if (error) throw new Error(error.message);
+		return data as CrmCampaignDetail;
+	},
+	async crmAudit(limit = 100) {
+		const { data, error } = await supabase.rpc('crm_audit', { p_limit: limit });
+		if (error) throw new Error(error.message);
+		return data as CrmAuditRow[];
 	}
 };

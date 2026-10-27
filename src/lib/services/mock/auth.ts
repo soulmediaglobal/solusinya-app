@@ -87,6 +87,7 @@ export const mockAuth: AuthService = {
 			isAdmin: false,
 			birthday: null,
 			avatar: null,
+			marketingOptIn: false,
 			password: input.password
 		};
 		db.users.push(user);
@@ -184,6 +185,16 @@ export const mockAuth: AuthService = {
 		if (!me) throw new AppError('not_signed_in', 'Not signed in');
 		if (me.birthday) throw new Error('birthday already set');
 		me.birthday = iso;
+		save(db);
+		return strip(me);
+	},
+
+	async setMarketingOptIn(value) {
+		await wait(100);
+		const db = load();
+		const me = db.users.find((x) => x.id === db.sessionUserId);
+		if (!me) throw new AppError('not_signed_in', 'Not signed in');
+		me.marketingOptIn = value;
 		save(db);
 		return strip(me);
 	},

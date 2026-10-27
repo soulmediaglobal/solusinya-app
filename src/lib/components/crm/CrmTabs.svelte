@@ -1,9 +1,12 @@
 <script lang="ts">
-	let { active }: { active: 'overview' | 'insights' | 'members' } = $props();
+	let { active }: { active: 'overview' | 'segments' | 'insights' | 'members' | 'campaigns' | 'audit' } = $props();
 	const tabs = [
 		{ id: 'overview', href: '/admin/crm', label: 'Overview' },
+		{ id: 'segments', href: '/admin/crm/segments', label: 'Segments' },
 		{ id: 'insights', href: '/admin/crm/insights', label: 'Insights' },
-		{ id: 'members', href: '/admin/crm/members', label: 'Members' }
+		{ id: 'members', href: '/admin/crm/members', label: 'Members' },
+		{ id: 'campaigns', href: '/admin/crm/campaigns', label: 'Campaigns' },
+		{ id: 'audit', href: '/admin/crm/audit', label: 'Audit' }
 	] as const;
 </script>
 
@@ -16,6 +19,7 @@
 <style>
 	nav {
 		display: inline-flex;
+		flex-wrap: wrap;
 		gap: 4px;
 		padding: 4px;
 		border-radius: 999px;
